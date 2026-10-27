@@ -1,0 +1,4 @@
+# Database SQLite generato
+*.db
+*.db-wal
+*.db-shm
