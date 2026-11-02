@@ -2,10 +2,3 @@
 *.db
 *.db-wal
 *.db-shm
-*.db-journal
-
-node_modules/
-.env
-.env.*
-!.env.example
-*.cookies
