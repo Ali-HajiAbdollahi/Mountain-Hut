@@ -6,6 +6,10 @@ import { createBookingService } from './services/bookingService.js';
 import { createBookingRouter } from './routes/bookingRoutes.js';
 import { createMailService } from './services/mailService.js';
 import { createBookingChangeService } from './services/bookingChangeService.js';
+import { createUserDao } from './dao/userDao.js';
+import { createAuthService } from './services/authService.js';
+import { createStaffBookingService } from './services/staffBookingService.js';
+import { createStaffBookingRouter } from './routes/staffBookingRoutes.js';
 
 const db = openDb();
 db.exec('PRAGMA busy_timeout = 5000');
@@ -20,8 +24,17 @@ const bookingRouter = createBookingRouter(
   createMailService(),
   changeService,
 );
+const staffUsers = createUserDao(db);
+const staffAuth = createAuthService(staffUsers);
+const staffService = createStaffBookingService(
+  staffUsers,
+  bookingDao,
+  slotDao,
+  staffAuth,
+);
+const staffBookingRouter = createStaffBookingRouter(staffService);
 const port = Number(process.env.PORT || 3001);
-const server = createApp(db, { bookingRouter }).listen(port, () => {
+const server = createApp(db, { bookingRouter, staffBookingRouter }).listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
 
