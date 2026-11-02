@@ -1,20 +1,18 @@
 import { openDb } from './db.js';
 import { createApp } from './app.js';
-import { createAvailabilityDao } from './dao/availabilityDao.js';
-import { createAvailabilityService } from './services/availabilityService.js';
-import { createAvailabilityRouter } from './routes/availabilityRoutes.js';
+import { createBookingDao } from './dao/bookingDao.js';
+import { createSlotDao } from './dao/slotDao.js';
+import { createBookingService } from './services/bookingService.js';
+import { createBookingRouter } from './routes/bookingRoutes.js';
+import { createMailService } from './services/mailService.js';
 
 const db = openDb();
 db.exec('PRAGMA busy_timeout = 5000');
 
-const availabilityDao = createAvailabilityDao(db);
-const availabilityService = createAvailabilityService(availabilityDao);
-const availabilityRouter = createAvailabilityRouter(availabilityService);
-
-const app = createApp({ availabilityRouter });
+const service = createBookingService(createBookingDao(db), createSlotDao(db));
+const bookingRouter = createBookingRouter(service, createMailService());
 const port = Number(process.env.PORT || 3001);
-
-const server = app.listen(port, () => {
+const server = createApp(db, { bookingRouter }).listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
 
