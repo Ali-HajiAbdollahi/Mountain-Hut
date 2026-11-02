@@ -4,10 +4,17 @@ export function createBookingDao(db) {
   return {
     atomic: action=>transaction(db,action),
     duplicate: (uID,tsID)=>db.prepare('SELECT bID FROM bookings WHERE uID=? AND tsID=?').get(uID,tsID),
-    insert({tsID,uID,contact_name,contact_phone,n_people}) {
+    insert({
+      tsID,
+      uID = null,
+      contact_name,
+      contact_phone = null,
+      n_people,
+      created_by = null,
+    }) {
       return Number(db.prepare(`INSERT INTO bookings
-        (tsID,uID,contact_name,contact_phone,n_people,created_by) VALUES (?,?,?,?,?,NULL)`)
-        .run(tsID,uID,contact_name,contact_phone,n_people).lastInsertRowid);
+        (tsID,uID,contact_name,contact_phone,n_people,created_by) VALUES (?,?,?,?,?,?)`)
+        .run(tsID,uID,contact_name,contact_phone,n_people,created_by).lastInsertRowid);
     },
     assign(bID,tsID,tables) {
       const q=db.prepare('INSERT INTO booking_tables(bID,tsID,table_no,seats) VALUES (?,?,?,?)');

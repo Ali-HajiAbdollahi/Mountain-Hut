@@ -13,7 +13,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { createAuthRouter } from './routes/authRoutes.js';
 import { createSlotRouter } from './routes/slotRoutes.js';
 
-export function createApp(db, { bookingRouter } = {}) {
+export function createApp(db, { bookingRouter, staffBookingRouter } = {}) {
   const app = express();
   const origin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
@@ -51,6 +51,7 @@ export function createApp(db, { bookingRouter } = {}) {
     ),
   );
   if (bookingRouter) app.use('/api/bookings', bookingRouter);
+  if (staffBookingRouter) app.use('/api/staff', staffBookingRouter);
 
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Endpoint not found' } }));
   app.use(errorHandler);
