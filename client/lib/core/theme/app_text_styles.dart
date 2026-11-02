@@ -15,8 +15,8 @@ class AppTextStyles {
             height: 1.25,
           ),
           headlineMedium: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
             height: 1.3,
           ),
           titleLarge: TextStyle(

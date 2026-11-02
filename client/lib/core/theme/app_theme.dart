@@ -31,16 +31,16 @@ class AppTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: AppColors.secondary,
+          fillColor: Color(0xFFF4F4F4),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 14,
           ),
           border: const OutlineInputBorder(
-            borderSide: BorderSide(color: AppColors.outlined),
+            borderSide: BorderSide(color: Color(0xFFE0E0E0)),
           ),
           enabledBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: AppColors.outlined),
+            borderSide: BorderSide(color: Color(0xFFE0E0E0)),
           ),
           focusedBorder: const OutlineInputBorder(
             borderSide: BorderSide(color: AppColors.primary, width: 2),
