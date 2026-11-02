@@ -31,5 +31,37 @@ export function createBookingDao(db) {
       return db.prepare(`SELECT b.bID FROM bookings b JOIN timeslots s ON s.tsID=b.tsID
         WHERE b.uID=? ORDER BY s.start_time,b.bID`).all(uID).map(r=>this.find(r.bID));
     },
+
+    removeAssignments(bID) {
+      db.prepare('DELETE FROM booking_tables WHERE bID = ?').run(bID);
+    },
+
+    update(bID, { tsID, n_people }) {
+      db.prepare(`
+       UPDATE bookings
+       SET tsID = ?, n_people = ?
+       WHERE bID = ?
+       `).run(tsID, n_people, bID);
+    },
+
+    replaceRequirements(bID, requirements) {
+      db.prepare('DELETE FROM booking_requirements WHERE bID = ?').run(bID);
+
+      const insert = db.prepare(`
+        INSERT INTO booking_requirements
+          (bID, n_people, description, allergy)
+           VALUES (?, ?, ?, ?)
+           `);
+
+        for (const requirement of requirements) {
+          insert.run(
+            bID,
+            requirement.n_people,
+            requirement.description,
+            Number(requirement.allergy),
+          );
+        }    
+     },
+
   };
 }
