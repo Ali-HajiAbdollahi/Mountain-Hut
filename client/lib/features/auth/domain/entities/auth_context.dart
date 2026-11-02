@@ -1,0 +1,1 @@
+enum AuthContext { directAccess, tableReservation }

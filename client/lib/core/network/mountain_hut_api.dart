@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:http/browser_client.dart';
+import 'package:http/http.dart' as http;
 
 import 'api_endpoints.dart';
 
@@ -17,9 +17,9 @@ class ApiException implements Exception {
 }
 
 class MountainHutApi {
-  MountainHutApi() : _client = (BrowserClient()..withCredentials = true);
+  MountainHutApi() : _client = http.Client();
 
-  final BrowserClient _client;
+  final http.Client _client;
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final base = ApiEndpoints.baseUrl.replaceFirst(RegExp(r'/$'), '');
