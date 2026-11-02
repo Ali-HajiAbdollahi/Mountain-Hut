@@ -17,8 +17,7 @@ class ApiException implements Exception {
 }
 
 class MountainHutApi {
-  MountainHutApi()
-      : _client = (BrowserClient()..withCredentials = true);
+  MountainHutApi() : _client = (BrowserClient()..withCredentials = true);
 
   final BrowserClient _client;
 
@@ -46,17 +45,9 @@ class MountainHutApi {
           case 'GET':
             return _client.get(uri, headers: headers);
           case 'POST':
-            return _client.post(
-              uri,
-              headers: headers,
-              body: encodedBody,
-            );
+            return _client.post(uri, headers: headers, body: encodedBody);
           case 'PUT':
-            return _client.put(
-              uri,
-              headers: headers,
-              body: encodedBody,
-            );
+            return _client.put(uri, headers: headers, body: encodedBody);
           case 'DELETE':
             return _client.delete(uri, headers: headers);
           default:
@@ -108,12 +99,7 @@ class MountainHutApi {
     Map<String, dynamic>? body,
     Map<String, String>? query,
   }) async {
-    final data = await _request(
-      method,
-      path,
-      body: body,
-      query: query,
-    );
+    final data = await _request(method, path, body: body, query: query);
 
     if (data is! Map<String, dynamic>) {
       throw const ApiException(
@@ -143,35 +129,24 @@ class MountainHutApi {
     return data.cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> health() =>
-      _object('GET', ApiEndpoints.health);
+  Future<Map<String, dynamic>> health() => _object('GET', ApiEndpoints.health);
 
-  Future<Map<String, dynamic>> login(
-    String email,
-    String password,
-  ) =>
-      _object(
-        'POST',
-        ApiEndpoints.sessions,
-        body: {'email': email, 'password': password},
-      );
+  Future<Map<String, dynamic>> login(String email, String password) => _object(
+    'POST',
+    ApiEndpoints.sessions,
+    body: {'email': email, 'password': password},
+  );
 
   Future<Map<String, dynamic>> register({
     required String name,
     required String email,
     required String phone,
     required String password,
-  }) =>
-      _object(
-        'POST',
-        ApiEndpoints.users,
-        body: {
-          'name': name,
-          'email': email,
-          'phone': phone,
-          'password': password,
-        },
-      );
+  }) => _object(
+    'POST',
+    ApiEndpoints.users,
+    body: {'name': name, 'email': email, 'phone': phone, 'password': password},
+  );
 
   Future<Map<String, dynamic>> currentUser() =>
       _object('GET', ApiEndpoints.currentSession);
@@ -202,8 +177,8 @@ class MountainHutApi {
       body: {
         'start_time': startTime,
         'end_time': endTime,
-        if (tables != null) 'tables': tables,
-        if (copyFromTsId != null) 'copy_from_tsID': copyFromTsId,
+        'tables': ?tables,
+        'copy_from_tsID': ?copyFromTsId,
       },
     );
   }
@@ -220,10 +195,7 @@ class MountainHutApi {
     return _object(
       'PUT',
       ApiEndpoints.slotTables(slotId),
-      body: {
-        if (tables != null) 'tables': tables,
-        if (copyFromTsId != null) 'copy_from_tsID': copyFromTsId,
-      },
+      body: {'tables': ?tables, 'copy_from_tsID': ?copyFromTsId},
     );
   }
 
@@ -231,31 +203,21 @@ class MountainHutApi {
     required String date,
     required String time,
     required int partySize,
-  }) =>
-      _object(
-        'GET',
-        ApiEndpoints.availability,
-        query: {
-          'date': date,
-          'time': time,
-          'partySize': partySize.toString(),
-        },
-      );
+  }) => _object(
+    'GET',
+    ApiEndpoints.availability,
+    query: {'date': date, 'time': time, 'partySize': partySize.toString()},
+  );
 
   Future<Map<String, dynamic>> book({
     required int slotId,
     required int people,
     List<Map<String, dynamic>> requirements = const [],
-  }) =>
-      _object(
-        'POST',
-        ApiEndpoints.bookings,
-        body: {
-          'tsID': slotId,
-          'n_people': people,
-          'requirements': requirements,
-        },
-      );
+  }) => _object(
+    'POST',
+    ApiEndpoints.bookings,
+    body: {'tsID': slotId, 'n_people': people, 'requirements': requirements},
+  );
 
   Future<List<Map<String, dynamic>>> myBookings() =>
       _list(ApiEndpoints.bookings);
@@ -264,11 +226,7 @@ class MountainHutApi {
       _object('GET', ApiEndpoints.booking(id));
 
   Future<Map<String, dynamic>> resendConfirmation(int id) =>
-      _object(
-        'POST',
-        ApiEndpoints.confirmation(id),
-        body: {},
-      );
+      _object('POST', ApiEndpoints.confirmation(id), body: {});
 
   void close() => _client.close();
 }
