@@ -25,5 +25,25 @@ export function createUserDao(db) {
     findByEmail: (email) => byEmail.get(email),
     // returns the user row with that uID, or undefined if there is none
     findById: (uID) => byId.get(uID),
+
+    searchHikers(query) {
+    const term = String(query ?? '').trim();
+    if (!term) return [];
+
+    const pattern = `%${term}%`;
+
+    return db.prepare(`
+    SELECT uID, name, email, phone, role
+    FROM users
+    WHERE role = 'hiker'
+      AND (
+            name LIKE ? COLLATE NOCASE
+            OR email LIKE ? COLLATE NOCASE
+            OR phone LIKE ?
+          )
+        ORDER BY name COLLATE NOCASE, uID
+        LIMIT 20
+      `).all(pattern, pattern, pattern);
+    },
   };
 }
