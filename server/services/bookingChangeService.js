@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import {
   ConflictError,
   ForbiddenError,
@@ -6,20 +5,17 @@ import {
   ValidationError,
 } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
+import { requireBookingWindow, slotTime } from '../domain/time.js';
 import { allocateTables } from '../domain/allocateTables.js';
 
 const CHANGE_WINDOW_MS = 48 * 60 * 60 * 1000;
 
-function requireChangeWindow(createdAt, now = Date.now()) {
-  const created = DateTime.fromSQL(createdAt, { zone: 'utc' });
+function requireChangeWindow(startTime, now = Date.now()) {
+  const mealStart = slotTime(startTime);
 
-  if (!created.isValid) {
-    throw new ValidationError('Invalid booking creation timestamp');
-  }
-
-  if (now > created.toMillis() + CHANGE_WINDOW_MS) {
+  if (mealStart.toMillis() - now < CHANGE_WINDOW_MS) {
     throw new ConflictError(
-      'Booking changes are only allowed within 48 hours after creation',
+      'Booking changes must be made at least 48 hours before the meal',
     );
   }
 }
@@ -75,7 +71,7 @@ export function createBookingChangeService(bookings, slots) {
           throw new NotFoundError('Booking not found');
         }
 
-        requireChangeWindow(current.created_at);
+        requireChangeWindow(current.start_time);
 
         const tsID = body.tsID === undefined
           ? current.tsID
@@ -98,6 +94,10 @@ export function createBookingChangeService(bookings, slots) {
         const slot = slots.find(tsID);
         if (!slot) {
           throw new NotFoundError('Slot not found');
+        }
+
+        if (tsID !== current.tsID) {
+          requireBookingWindow(slot.start_time);
         }
 
         const duplicate = bookings.duplicate(user.uID, tsID);
