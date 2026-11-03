@@ -1,10 +1,18 @@
+import 'package:flutter/foundation.dart';
+
 class ApiEndpoints {
   const ApiEndpoints._();
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:3001/api',
-  );
+  static String get baseUrl {
+    const configuredUrl = String.fromEnvironment('API_BASE_URL');
+    if (configuredUrl.isNotEmpty) return configuredUrl;
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:3001/api';
+    }
+
+    return 'http://localhost:3001/api';
+  }
 
   static const String health = '/health';
   static const String users = '/users';

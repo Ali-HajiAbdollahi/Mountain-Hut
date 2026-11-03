@@ -22,7 +22,7 @@ class AuthScreen extends StatefulWidget {
 
   final AuthContext authContext;
   final AuthRepository authRepository;
-  final VoidCallback? onSignIn;
+  final ValueChanged<Map<String, dynamic>>? onSignIn;
   final VoidCallback? onRegister;
   final VoidCallback? onForgotPassword;
 
@@ -31,17 +31,40 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool _isRegistration = false;
+  late bool _isRegistration;
   bool _isSubmitting = false;
   String? _errorMessage;
 
   bool get _isReservation => widget.authContext == AuthContext.tableReservation;
 
+  @override
+  void initState() {
+    super.initState();
+    _isRegistration = _isReservation;
+  }
+
   Future<void> _signIn(String email, String password) async {
-    await _runAuthAction(
-      () => widget.authRepository.signIn(email: email, password: password),
-      widget.onSignIn,
-    );
+    await _runSignIn(email, password);
+  }
+
+  Future<void> _runSignIn(String email, String password) async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+    try {
+      final user = await widget.authRepository.signIn(
+        email: email,
+        password: password,
+      );
+      if (mounted) widget.onSignIn?.call(user);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } on AppException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Future<void> _register(
@@ -102,9 +125,15 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       ),
       body: SafeArea(
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppConstants.spacingLg),
+            padding: const EdgeInsets.fromLTRB(
+              AppConstants.spacingLg,
+              AppConstants.spacingLg,
+              AppConstants.spacingLg,
+              AppConstants.spacingLg,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: Column(
@@ -149,10 +178,7 @@ class _AuthScreenState extends State<AuthScreen> {
 }
 
 class _AuthToggle extends StatelessWidget {
-  const _AuthToggle({
-    required this.isRegistration,
-    required this.onChanged,
-  });
+  const _AuthToggle({required this.isRegistration, required this.onChanged});
 
   final bool isRegistration;
   final ValueChanged<bool> onChanged;

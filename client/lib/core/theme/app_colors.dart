@@ -16,4 +16,13 @@ class AppColors {
   static const Color text = Color(0xFF161616);
   static const Color textSecondary = Color(0xFF525252);
   static const Color disabled = Color(0xFFC6C6C6);
+  static const Color pageBackground = Color(0xFFFAFAFA);
+  static const Color lightBorder = Color(0xFFE5E7EB);
+  static const Color lightControl = Color(0xFFF3F4F6);
+  static const Color lightSlot = Color(0xFFE5E7EB);
+  static const Color successBadge = Color(0xFFB7F5C7);
+  static const Color infoBadge = Color(0xFFDCEBFF);
+  static const Color infoSurface = Color(0xFFF4F4F4);
+  static const Color errorSurface = Color(0xFFFEEBEE);
+  static const Color softBlue = Color(0xFF3B82F6);
 }
