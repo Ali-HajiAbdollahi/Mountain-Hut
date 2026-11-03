@@ -106,7 +106,7 @@ Available response (`200`):
 }
 ```
 
-When no slot starts at the requested date and time, the API returns `200` with `available: false`, `slot: null`, and an empty `allocation`. If a slot exists but does not have enough free seats, `slot` contains its details and `allocation` is empty. When possible, the API places the party at one table; otherwise, it splits the party across tables in table-number order. The allocation reports seats reserved for this party, not each table's full capacity.
+When no slot starts at the requested date and time, the API returns `200` with `available: false`, `slot: null`, and an empty `allocation`. If a slot exists but does not have enough free seats, `slot` contains its details and `allocation` is empty. When possible, the API chooses a combination using the fewest tables; if multiple combinations use the same number of tables, it chooses the one with the least total free capacity. It then allocates the requested seats across those tables in order of increasing free capacity, using table number to break ties. The allocation reports seats reserved for this party, not each table's full capacity.
 
 Invalid dates, times, or party sizes return `400`.
 
