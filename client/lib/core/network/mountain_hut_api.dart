@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'api_client.dart';
 import 'api_endpoints.dart';
 
 class ApiException implements Exception {
@@ -17,9 +18,10 @@ class ApiException implements Exception {
 }
 
 class MountainHutApi {
-  MountainHutApi() : _client = http.Client();
+  MountainHutApi() : _client = createApiClient();
 
   final http.Client _client;
+  String? _sessionCookie;
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final base = ApiEndpoints.baseUrl.replaceFirst(RegExp(r'/$'), '');
@@ -36,6 +38,7 @@ class MountainHutApi {
     final headers = <String, String>{
       'Accept': 'application/json',
       if (body != null) 'Content-Type': 'application/json',
+      if (!isBrowserClient && _sessionCookie != null) 'Cookie': _sessionCookie!,
     };
     final encodedBody = body == null ? null : jsonEncode(body);
 
@@ -55,6 +58,7 @@ class MountainHutApi {
         }
       })().timeout(const Duration(seconds: 30));
 
+      _storeSessionCookie(response.headers['set-cookie']);
       if (response.statusCode == 204) return null;
 
       dynamic data;
@@ -91,6 +95,24 @@ class MountainHutApi {
             'before trying again.',
       );
     }
+  }
+
+  void _storeSessionCookie(String? setCookie) {
+    if (setCookie == null || setCookie.isEmpty) return;
+    final cookie = setCookie.split(';').first.trim();
+    if (cookie.isEmpty) return;
+
+    final separator = cookie.indexOf('=');
+    if (separator <= 0) return;
+    final name = cookie.substring(0, separator);
+    final value = cookie.substring(separator + 1);
+    final current = (_sessionCookie ?? '')
+        .split(';')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty && !item.startsWith('$name='))
+        .toList();
+    if (value.isNotEmpty) current.add(cookie);
+    _sessionCookie = current.isEmpty ? null : current.join('; ');
   }
 
   Future<Map<String, dynamic>> _object(
@@ -153,6 +175,7 @@ class MountainHutApi {
 
   Future<void> logout() async {
     await _request('DELETE', ApiEndpoints.currentSession);
+    _sessionCookie = null;
   }
 
   Future<List<Map<String, dynamic>>> listSlots(String date) =>

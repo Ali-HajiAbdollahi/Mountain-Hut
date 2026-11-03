@@ -23,7 +23,7 @@ class AuthScreen extends StatefulWidget {
   final AuthContext authContext;
   final AuthRepository authRepository;
   final ValueChanged<Map<String, dynamic>>? onSignIn;
-  final VoidCallback? onRegister;
+  final ValueChanged<Map<String, dynamic>>? onRegister;
   final VoidCallback? onForgotPassword;
 
   @override
@@ -73,28 +73,18 @@ class _AuthScreenState extends State<AuthScreen> {
     String phone,
     String password,
   ) async {
-    await _runAuthAction(
-      () => widget.authRepository.register(
-        name: name,
-        email: email,
-        phone: phone,
-        password: password,
-      ),
-      widget.onRegister,
-    );
-  }
-
-  Future<void> _runAuthAction(
-    Future<void> Function() action,
-    VoidCallback? onSuccess,
-  ) async {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
     try {
-      await action();
-      if (mounted) onSuccess?.call();
+      final user = await widget.authRepository.register(
+        name: name,
+        email: email,
+        phone: phone,
+        password: password,
+      );
+      if (mounted) widget.onRegister?.call(user);
     } on ApiException catch (error) {
       if (mounted) setState(() => _errorMessage = error.message);
     } on AppException catch (error) {

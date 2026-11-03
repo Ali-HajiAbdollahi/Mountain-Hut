@@ -6,6 +6,7 @@ import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/auth_context.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
+import '../../../booking/domain/entities/booking_allocation.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({
@@ -32,6 +33,7 @@ class _ExplorePageState extends State<ExplorePage> {
   List<Map<String, dynamic>> _slots = const [];
   int _guests = 6;
   int _selectedSlot = 0;
+  int _availabilityRequestVersion = 0;
   DateTime _selectedDate = DateTime.now();
 
   @override
@@ -42,10 +44,12 @@ class _ExplorePageState extends State<ExplorePage> {
 
   Future<void> _loadSlots() async {
     final date = _formatDate(_selectedDate);
+    _availabilityRequestVersion++;
     setState(() {
       _isLoadingSlots = true;
       _slotsErrorMessage = null;
       _hasCheckedAvailability = false;
+      _availability = null;
     });
     try {
       final slots = await widget.api.listSlots(date);
@@ -72,10 +76,14 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> _selectDate() async {
+    final today = DateTime.now();
+    final firstSelectableDate = DateTime(today.year, today.month, today.day);
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
+      initialDate: _selectedDate.isBefore(firstSelectableDate)
+          ? firstSelectableDate
+          : _selectedDate,
+      firstDate: firstSelectableDate,
       lastDate: DateTime(2035),
     );
     if (date == null || !mounted) return;
@@ -84,20 +92,26 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> _checkAvailability() async {
+    final requestVersion = ++_availabilityRequestVersion;
+    final requestedDate = _formatDate(_selectedDate);
+    final requestedGuests = _guests;
+    final requestedSlot = _selectedSlot;
     setState(() {
       _isCheckingAvailability = true;
       _hasCheckedAvailability = false;
+      _availability = null;
       _errorMessage = null;
     });
     try {
       if (_slots.isEmpty) return;
-      final selectedSlot = _slots[_selectedSlot];
+      final selectedSlot = _slots[requestedSlot];
       final result = await widget.api.checkAvailability(
-        date: _formatDate(_selectedDate),
+        date: requestedDate,
         time: _slotTime(selectedSlot['start_time']),
-        partySize: _guests,
+        partySize: requestedGuests,
       );
       if (!mounted) return;
+      if (requestVersion != _availabilityRequestVersion) return;
       setState(() {
         _availability = result;
         _hasCheckedAvailability = true;
@@ -130,18 +144,111 @@ class _ExplorePageState extends State<ExplorePage> {
     return '$month/$day/${date.year}';
   }
 
+  void _invalidateAvailability() {
+    _availabilityRequestVersion++;
+    setState(() {
+      _hasCheckedAvailability = false;
+      _availability = null;
+      _errorMessage = null;
+    });
+  }
+
   void _openAuth(AuthContext authContext) {
+    if (authContext == AuthContext.tableReservation && _isHikerSignedIn) {
+      _openBooking();
+      return;
+    }
+
+    void handleAuthenticatedUser(Map<String, dynamic> user) {
+      if (user['role'] != 'hiker' || !mounted) return;
+      if (authContext == AuthContext.tableReservation) {
+        setState(() => _isHikerSignedIn = true);
+        Navigator.of(context).pop();
+        _openBooking();
+        return;
+      }
+      setState(() => _isHikerSignedIn = true);
+      Navigator.of(context).pop();
+    }
+
     Navigator.of(context).push(
       AppNavigation.auth(
         authRepository: widget.authRepository,
         authContext: authContext,
-        onSignIn: (user) {
-          if (user['role'] != 'hiker' || !mounted) return;
-          setState(() => _isHikerSignedIn = true);
-          Navigator.of(context).pop();
-        },
+        onSignIn: handleAuthenticatedUser,
+        onRegister: handleAuthenticatedUser,
       ),
     );
+  }
+
+  void _openBooking() {
+    final slot = _selectedSlotDetails;
+    final slotId = _intValue(slot?['tsID']);
+    if (slotId == null) {
+      setState(() {
+        _errorMessage = 'The selected meal slot is no longer available.';
+      });
+      return;
+    }
+    Navigator.of(context).push(
+      AppNavigation.booking(
+        api: widget.api,
+        allocation: BookingAllocation(
+          date: _displayDate(_selectedDate),
+          slotId: slotId,
+          startTime: _timeLabel(slot?['start_time']),
+          endTime: _timeLabel(slot?['end_time']),
+          partySize: _guests,
+          seasonLabel: _seasonLabel(_selectedDate),
+          seatingLabel: _seatingLabel(slot?['start_time']),
+          tablesLabel: _allocatedTablesLabel(),
+        ),
+      ),
+    );
+  }
+
+  int? _intValue(Object? value) {
+    return switch (value) {
+      int number => number,
+      String text => int.tryParse(text),
+      _ => null,
+    };
+  }
+
+  String _timeLabel(Object? value) {
+    final text = value?.toString() ?? '';
+    return text.length >= 16 ? text.substring(11, 16) : text;
+  }
+
+  String _seasonLabel(DateTime date) {
+    return switch (date.month) {
+      12 || 1 || 2 => 'Winter Peak',
+      3 || 4 || 5 => 'Spring Peak',
+      6 || 7 || 8 => 'Summer Peak',
+      _ => 'Autumn Peak',
+    };
+  }
+
+  String _seatingLabel(Object? value) {
+    final time = _timeLabel(value);
+    final hour = int.tryParse(time.split(':').first) ?? 0;
+    return hour < 17 ? 'Lunch Seating' : 'Dinner Seating';
+  }
+
+  String _allocatedTablesLabel() {
+    final allocation = _availability?['allocation'];
+    if (allocation is! List) return '';
+    final tables =
+        allocation
+            .whereType<Map>()
+            .map((item) => item['table_no'])
+            .whereType<num>()
+            .map((number) => number.toInt())
+            .toSet()
+            .toList()
+          ..sort();
+    if (tables.isEmpty) return '';
+    return 'Tables ${tables.join(' & ')}';
   }
 
   @override
@@ -216,9 +323,14 @@ class _ExplorePageState extends State<ExplorePage> {
                   isCheckingAvailability: _isCheckingAvailability,
                   dateLabel: _displayDate(_selectedDate),
                   onDateSelected: _selectDate,
-                  onGuestsChanged: (value) => setState(() => _guests = value),
-                  onSlotChanged: (value) =>
-                      setState(() => _selectedSlot = value),
+                  onGuestsChanged: (value) {
+                    setState(() => _guests = value);
+                    _invalidateAvailability();
+                  },
+                  onSlotChanged: (value) {
+                    setState(() => _selectedSlot = value);
+                    _invalidateAvailability();
+                  },
                   onCheckAvailability: _checkAvailability,
                   onRetrySlots: _loadSlots,
                 ),
