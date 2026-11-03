@@ -4,7 +4,7 @@ abstract interface class AuthRepository {
     required String password,
   });
 
-  Future<void> register({
+  Future<Map<String, dynamic>> register({
     required String name,
     required String email,
     required String phone,

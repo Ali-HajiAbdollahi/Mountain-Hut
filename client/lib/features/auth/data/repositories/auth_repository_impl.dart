@@ -15,13 +15,13 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> register({
+  Future<Map<String, dynamic>> register({
     required String name,
     required String email,
     required String phone,
     required String password,
   }) async {
-    await _api.register(
+    return _api.register(
       name: name,
       email: email,
       phone: phone,
