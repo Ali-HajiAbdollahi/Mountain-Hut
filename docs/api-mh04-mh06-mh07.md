@@ -114,7 +114,7 @@ Invalid dates, times, or party sizes return `400`.
 
 ## MH-06 — Change a booking
 
-A logged-in hiker can change a booking they own within 48 hours after the booking was created. Changes to party size or slot are subject to the availability check and automatic table allocation.
+A logged-in hiker can change a booking they own only if the meal starts at least 48 hours from the time of the change. Changes to party size or slot are subject to the availability check and automatic table allocation. When changing to a different timeslot, the target timeslot must also start at least two hours from the time of the change, following the MH-01 booking cutoff. Exactly 48 hours before the meal and exactly two hours before the target slot are allowed.
 
 ### `PATCH /api/bookings/:id`
 
@@ -188,7 +188,7 @@ Success response (`200`):
 }
 ```
 
-The response also includes database fields such as `created_at` and `created_by` when present. A missing booking or a booking owned by another user returns `404`. A booking older than the 48-hour change window, a duplicate booking in the target slot, or insufficient capacity returns `409`.
+The response also includes database fields such as `created_at` and `created_by` when present. A missing booking or a booking owned by another user returns `404`. A change made less than 48 hours before the meal, a move to a target timeslot starting less than two hours later, a duplicate booking in the target slot, or insufficient capacity returns `409`.
 
 The current `MountainHutApi` does not support `PATCH` and has no `updateBooking()` method. Add the method to the client before wiring the edit-booking page; the path and JSON contract above describe the backend endpoint.
 
