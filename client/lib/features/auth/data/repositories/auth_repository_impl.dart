@@ -7,11 +7,11 @@ class AuthRepositoryImpl implements AuthRepository {
   final MountainHutApi _api;
 
   @override
-  Future<void> signIn({
+  Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
   }) async {
-    await _api.login(email, password);
+    return _api.login(email, password);
   }
 
   @override

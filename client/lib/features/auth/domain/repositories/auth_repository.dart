@@ -1,5 +1,5 @@
 abstract interface class AuthRepository {
-  Future<void> signIn({
+  Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
   });
