@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { ValidationError } from '../errors.js';
+import { allocateTables } from '../domain/allocateTables.js';
 
 function validateInput({ date, time, partySize }) {
   if (typeof date !== 'string') {
@@ -66,34 +67,13 @@ export function createAvailabilityService(availabilityDao) {
         };
       }
 
-      const singleTable = slot.tables
-        .filter(table => table.freeSeats >= people)
-        .sort((a, b) => a.freeSeats - b.freeSeats || a.table_no - b.table_no)[0];
-
-      let allocation;
-
-      if (singleTable) {
-        allocation = [{
-          table_no: singleTable.table_no,
-          seats: people,
-        }];
-      } else {
-        let remaining = people;
-        allocation = [];
-
-        for (const table of slot.tables) {
-          if (remaining === 0) break;
-
-          const seats = Math.min(table.freeSeats, remaining);
-          if (seats > 0) {
-            allocation.push({
-              table_no: table.table_no,
-              seats,
-            });
-            remaining -= seats;
-          }
-        }
-      }
+      const allocation = allocateTables(
+        slot.tables.map(({ table_no, freeSeats }) => ({
+          table_no,
+          free_seats: freeSeats,
+        })),
+        people,
+      );
 
       return {
         available: true,
