@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/navigation/app_bottom_navigation.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/auth_context.dart';
@@ -172,7 +173,41 @@ class _ExplorePageState extends State<ExplorePage> {
     }
 
     void handleAuthenticatedUser(Map<String, dynamic> user) {
-      if (user['role'] != 'hiker' || !mounted) return;
+      if (!mounted) return;
+      if (user['role'] == 'employee') {
+        final navigator = AppNavigation.navigatorKey.currentState;
+        if (navigator == null) return;
+        navigator.pushReplacement(
+          AppNavigation.account(
+            authRepository: widget.authRepository,
+            api: widget.api,
+            onStaffPortal: () =>
+                AppNavigation.navigatorKey.currentState?.pushReplacement(
+                  AppNavigation.staffPortal(
+                    authRepository: widget.authRepository,
+                    api: widget.api,
+                  ),
+                ),
+            onExplore: () =>
+                AppNavigation.navigatorKey.currentState?.pushReplacement(
+                  AppNavigation.explore(
+                    authRepository: widget.authRepository,
+                    api: widget.api,
+                  ),
+                ),
+            onLogout: () =>
+                AppNavigation.navigatorKey.currentState?.pushAndRemoveUntil(
+                  AppNavigation.explore(
+                    authRepository: widget.authRepository,
+                    api: widget.api,
+                  ),
+                  (route) => false,
+                ),
+          ),
+        );
+        return;
+      }
+      if (user['role'] != 'hiker') return;
       if (authContext == AuthContext.tableReservation) {
         setState(() => _isHikerSignedIn = true);
         Navigator.of(context).pop();
@@ -396,12 +431,49 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
         ),
       ),
-      bottomNavigationBar: _ExploreBottomNavigation(
-        isSignedIn: _isHikerSignedIn,
-        onLogin: () => _openAuth(AuthContext.directAccess),
-        onMyBookings: () => Navigator.of(
-          context,
-        ).push(AppNavigation.myBookings(api: widget.api)),
+      bottomNavigationBar: AppBottomNavigation(
+        role: _isHikerSignedIn
+            ? AppNavigationRole.hiker
+            : AppNavigationRole.anonymous,
+        selectedTab: AppNavigationTab.explore,
+        onBookings: () =>
+            AppNavigation.navigatorKey.currentState?.pushReplacement(
+              AppNavigation.myBookings(
+                api: widget.api,
+                authRepository: widget.authRepository,
+              ),
+            ),
+        onAccount: _isHikerSignedIn
+            ? () {
+                final navigator = AppNavigation.navigatorKey.currentState;
+                if (navigator == null) return;
+                navigator.pushReplacement(
+                  AppNavigation.account(
+                    authRepository: widget.authRepository,
+                    api: widget.api,
+                    onExplore: () => navigator.pushReplacement(
+                      AppNavigation.explore(
+                        authRepository: widget.authRepository,
+                        api: widget.api,
+                      ),
+                    ),
+                    onBookings: () => navigator.pushReplacement(
+                      AppNavigation.myBookings(
+                        api: widget.api,
+                        authRepository: widget.authRepository,
+                      ),
+                    ),
+                    onLogout: () => navigator.pushAndRemoveUntil(
+                      AppNavigation.explore(
+                        authRepository: widget.authRepository,
+                        api: widget.api,
+                      ),
+                      (route) => false,
+                    ),
+                  ),
+                );
+              }
+            : () => _openAuth(AuthContext.directAccess),
       ),
     );
   }
@@ -409,111 +481,6 @@ class _ExplorePageState extends State<ExplorePage> {
   Map<String, dynamic>? get _selectedSlotDetails {
     if (_selectedSlot < 0 || _selectedSlot >= _slots.length) return null;
     return _slots[_selectedSlot];
-  }
-}
-
-class _ExploreBottomNavigation extends StatelessWidget {
-  const _ExploreBottomNavigation({
-    required this.isSignedIn,
-    required this.onLogin,
-    required this.onMyBookings,
-  });
-
-  final bool isSignedIn;
-  final VoidCallback onLogin;
-  final VoidCallback onMyBookings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 78,
-          child: Row(
-            children: [
-              Expanded(
-                child: _BottomNavigationItem(
-                  icon: Icons.search,
-                  label: 'Explore',
-                  selected: true,
-                ),
-              ),
-              Expanded(
-                child: isSignedIn
-                    ? _BottomNavigationItem(
-                        icon: Icons.calendar_month_outlined,
-                        label: 'My Bookings',
-                        onPressed: onMyBookings,
-                      )
-                    : _BottomNavigationItem(
-                        icon: Icons.login,
-                        label: 'Log In',
-                        onPressed: onLogin,
-                      ),
-              ),
-              if (isSignedIn)
-                const Expanded(
-                  child: _BottomNavigationItem(
-                    icon: Icons.person_outline,
-                    label: 'Account',
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavigationItem extends StatelessWidget {
-  const _BottomNavigationItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : AppColors.textSecondary;
-
-    return ClipRect(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          hoverColor: Colors.transparent,
-          focusColor: Colors.transparent,
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 22, color: color),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

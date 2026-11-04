@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/navigation/app_bottom_navigation.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/domain/repositories/auth_repository.dart';
 import '../widgets/cancel_booking_modal.dart';
 import '../widgets/modify_reservation_modal.dart';
 
 class MyBookingsPage extends StatefulWidget {
-  const MyBookingsPage({required this.api, super.key});
+  const MyBookingsPage({required this.api, this.authRepository, super.key});
 
   final MountainHutApi api;
+  final AuthRepository? authRepository;
 
   @override
   State<MyBookingsPage> createState() => _MyBookingsPageState();
@@ -167,89 +171,52 @@ class _MyBookingsPageState extends State<MyBookingsPage>
           ),
         ),
       ),
-      bottomNavigationBar: _MyBookingsNavigation(
-        onExplore: () =>
-            Navigator.of(context).popUntil((route) => route.isFirst),
-      ),
-    );
-  }
-}
-
-class _MyBookingsNavigation extends StatelessWidget {
-  const _MyBookingsNavigation({required this.onExplore});
-
-  final VoidCallback onExplore;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 78,
-          child: Row(
-            children: [
-              Expanded(
-                child: _NavigationItem(
-                  icon: Icons.search,
-                  label: 'Explore',
-                  onPressed: onExplore,
+      bottomNavigationBar: AppBottomNavigation(
+        role: AppNavigationRole.hiker,
+        selectedTab: AppNavigationTab.bookings,
+        onExplore: widget.authRepository == null
+            ? () => AppNavigation.navigatorKey.currentState?.popUntil(
+                (route) => route.isFirst,
+              )
+            : () => AppNavigation.navigatorKey.currentState?.pushReplacement(
+                AppNavigation.explore(
+                  authRepository: widget.authRepository!,
+                  api: widget.api,
                 ),
               ),
-              const Expanded(
-                child: _NavigationItem(
-                  icon: Icons.calendar_month_outlined,
-                  label: 'My Bookings',
-                  selected: true,
+        onAccount: () {
+          final navigator = AppNavigation.navigatorKey.currentState;
+          if (navigator == null) return;
+          navigator.push(
+            AppNavigation.account(
+              api: widget.api,
+              authRepository: widget.authRepository,
+              onExplore: widget.authRepository == null
+                  ? () => navigator.popUntil((route) => route.isFirst)
+                  : () => navigator.pushReplacement(
+                      AppNavigation.explore(
+                        authRepository: widget.authRepository!,
+                        api: widget.api,
+                      ),
+                    ),
+              onBookings: () => navigator.pushReplacement(
+                AppNavigation.myBookings(
+                  api: widget.api,
+                  authRepository: widget.authRepository,
                 ),
               ),
-              const Expanded(
-                child: _NavigationItem(
-                  icon: Icons.person_outline,
-                  label: 'Account',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavigationItem extends StatelessWidget {
-  const _NavigationItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : AppColors.textSecondary;
-    return InkWell(
-      onTap: onPressed,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              onLogout: widget.authRepository == null
+                  ? null
+                  : () => navigator.pushAndRemoveUntil(
+                      AppNavigation.explore(
+                        authRepository: widget.authRepository!,
+                        api: widget.api,
+                      ),
+                      (route) => false,
+                    ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

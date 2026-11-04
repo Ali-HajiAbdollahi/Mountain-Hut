@@ -31,6 +31,7 @@ class MountainHutApp extends StatelessWidget {
       builder: (context, child) =>
           ResponsiveAppShell(child: child ?? const SizedBox.shrink()),
       home: Navigator(
+        key: AppNavigation.navigatorKey,
         onGenerateRoute: (_) =>
             AppNavigation.explore(authRepository: authRepository, api: api),
       ),
