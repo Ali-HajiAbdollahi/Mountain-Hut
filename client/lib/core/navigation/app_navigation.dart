@@ -9,6 +9,7 @@ import '../../features/booking/domain/entities/booking_allocation.dart';
 import '../../features/booking/presentation/pages/booking_page.dart';
 import '../../features/booking/presentation/pages/booking_success_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
+import '../../features/hiker_portal/presentation/pages/my_bookings_page.dart';
 
 class AppNavigation {
   const AppNavigation._();
@@ -46,21 +47,28 @@ class AppNavigation {
       builder: (_) => BookingPage(
         allocation: allocation,
         repository: BookingRepositoryImpl(api),
+        api: api,
       ),
     );
   }
 
   static Route<void> bookingSuccess({
+    required MountainHutApi api,
     required Map<String, dynamic> booking,
     required BookingAllocation allocation,
     required bool notificationSent,
   }) {
     return MaterialPageRoute<void>(
       builder: (_) => BookingSuccessPage(
+        api: api,
         booking: booking,
         allocation: allocation,
         notificationSent: notificationSent,
       ),
     );
+  }
+
+  static Route<void> myBookings({required MountainHutApi api}) {
+    return MaterialPageRoute<void>(builder: (_) => MyBookingsPage(api: api));
   }
 }

@@ -51,6 +51,8 @@ class MountainHutApi {
             return _client.post(uri, headers: headers, body: encodedBody);
           case 'PUT':
             return _client.put(uri, headers: headers, body: encodedBody);
+          case 'PATCH':
+            return _client.patch(uri, headers: headers, body: encodedBody);
           case 'DELETE':
             return _client.delete(uri, headers: headers);
           default:
@@ -247,6 +249,21 @@ class MountainHutApi {
 
   Future<Map<String, dynamic>> booking(int id) =>
       _object('GET', ApiEndpoints.booking(id));
+
+  Future<Map<String, dynamic>> updateBooking(
+    int id, {
+    int? slotId,
+    int? people,
+    List<Map<String, dynamic>>? requirements,
+  }) => _object(
+    'PATCH',
+    ApiEndpoints.booking(id),
+    body: {'tsID': ?slotId, 'n_people': ?people, 'requirements': ?requirements},
+  );
+
+  Future<void> cancelBooking(int id) async {
+    await _request('DELETE', ApiEndpoints.booking(id));
+  }
 
   Future<Map<String, dynamic>> resendConfirmation(int id) =>
       _object('POST', ApiEndpoints.confirmation(id), body: {});
