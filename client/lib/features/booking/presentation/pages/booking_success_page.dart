@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/booking_allocation.dart';
+import '../widgets/email_notification_card.dart';
 
 class BookingSuccessPage extends StatelessWidget {
   const BookingSuccessPage({
@@ -165,25 +166,7 @@ class _ConfirmationCard extends StatelessWidget {
             ),
             if (notificationSent) ...[
               const SizedBox(height: AppConstants.spacingMd),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppConstants.spacingSm),
-                color: AppColors.infoSurface,
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.mark_email_read_outlined,
-                      color: AppColors.primary,
-                    ),
-                    SizedBox(width: AppConstants.spacingSm),
-                    Expanded(
-                      child: Text(
-                        'Notification dispatched\nA confirmation email has been sent to your inbox.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const EmailNotificationCard(),
             ],
           ],
         ),
