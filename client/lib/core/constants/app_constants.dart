@@ -16,6 +16,7 @@ class AppConstants {
   static const double desktopContentFraction = 0.82;
   static const double exploreContentMaxWidth = 960;
   static const double bookingContentMaxWidth = 560;
+  static const double myBookingsContentMaxWidth = 600;
   static const double tabletContentInset = 12;
   static const double desktopContentInset = 24;
 }

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/booking_allocation.dart';
 import '../widgets/email_notification_card.dart';
 
 class BookingSuccessPage extends StatelessWidget {
   const BookingSuccessPage({
+    required this.api,
     required this.booking,
     required this.allocation,
     required this.notificationSent,
@@ -14,6 +17,7 @@ class BookingSuccessPage extends StatelessWidget {
   });
 
   final Map<String, dynamic> booking;
+  final MountainHutApi api;
   final BookingAllocation allocation;
   final bool notificationSent;
 
@@ -101,7 +105,9 @@ class BookingSuccessPage extends StatelessWidget {
                 const _InfoCard(),
                 const SizedBox(height: AppConstants.spacingMd),
                 FilledButton.icon(
-                  onPressed: () {},
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(AppNavigation.myBookings(api: api)),
                   icon: const Icon(Icons.arrow_forward),
                   label: const Text('View in My Bookings'),
                   iconAlignment: IconAlignment.end,

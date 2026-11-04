@@ -39,7 +39,19 @@ class _ExplorePageState extends State<ExplorePage> {
   @override
   void initState() {
     super.initState();
+    _restoreSession();
     _loadSlots();
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final user = await widget.api.currentUser();
+      if (mounted && user['role'] == 'hiker') {
+        setState(() => _isHikerSignedIn = true);
+      }
+    } on ApiException {
+      // An anonymous visitor is expected when no session exists.
+    }
   }
 
   Future<void> _loadSlots() async {
@@ -387,6 +399,9 @@ class _ExplorePageState extends State<ExplorePage> {
       bottomNavigationBar: _ExploreBottomNavigation(
         isSignedIn: _isHikerSignedIn,
         onLogin: () => _openAuth(AuthContext.directAccess),
+        onMyBookings: () => Navigator.of(
+          context,
+        ).push(AppNavigation.myBookings(api: widget.api)),
       ),
     );
   }
@@ -401,10 +416,12 @@ class _ExploreBottomNavigation extends StatelessWidget {
   const _ExploreBottomNavigation({
     required this.isSignedIn,
     required this.onLogin,
+    required this.onMyBookings,
   });
 
   final bool isSignedIn;
   final VoidCallback onLogin;
+  final VoidCallback onMyBookings;
 
   @override
   Widget build(BuildContext context) {
@@ -425,9 +442,10 @@ class _ExploreBottomNavigation extends StatelessWidget {
               ),
               Expanded(
                 child: isSignedIn
-                    ? const _BottomNavigationItem(
+                    ? _BottomNavigationItem(
                         icon: Icons.calendar_month_outlined,
                         label: 'My Bookings',
+                        onPressed: onMyBookings,
                       )
                     : _BottomNavigationItem(
                         icon: Icons.login,

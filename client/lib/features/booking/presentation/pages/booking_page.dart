@@ -13,11 +13,13 @@ class BookingPage extends StatefulWidget {
   const BookingPage({
     required this.allocation,
     required this.repository,
+    required this.api,
     super.key,
   });
 
   final BookingAllocation allocation;
   final BookingRepository repository;
+  final MountainHutApi api;
 
   @override
   State<BookingPage> createState() => _BookingPageState();
@@ -76,6 +78,7 @@ class _BookingPageState extends State<BookingPage> {
       }
       Navigator.of(context).pushReplacement(
         AppNavigation.bookingSuccess(
+          api: widget.api,
           booking: booking,
           allocation: widget.allocation,
           notificationSent: response['notification'] != null,
