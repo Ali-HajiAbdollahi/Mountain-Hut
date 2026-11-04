@@ -7,6 +7,7 @@ import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/booking_allocation.dart';
 import '../../domain/repositories/booking_repository.dart';
+import '../widgets/dietary_requirements_section.dart';
 
 class BookingPage extends StatefulWidget {
   const BookingPage({
@@ -23,7 +24,7 @@ class BookingPage extends StatefulWidget {
 }
 
 class _BookingPageState extends State<BookingPage> {
-  final _requirements = <_RequirementDraft>[];
+  final _requirements = <DietaryRequirementDraft>[];
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -33,10 +34,6 @@ class _BookingPageState extends State<BookingPage> {
       requirement.dispose();
     }
     super.dispose();
-  }
-
-  void _addRequirement() {
-    setState(() => _requirements.add(_RequirementDraft()));
   }
 
   void _removeRequirement(int index) {
@@ -129,40 +126,16 @@ class _BookingPageState extends State<BookingPage> {
                       'Date, time, and party size are locked from your availability check. Mountain Hut operations close alterations 2 hours prior to seating.',
                 ),
                 const SizedBox(height: AppConstants.spacingXl),
-                Text(
-                  'Dietary & Allergy Requirements',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Specify party member constraints for high-altitude prep.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppConstants.spacingMd),
-                ..._requirements.indexed.map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: AppConstants.spacingSm,
-                    ),
-                    child: _RequirementCard(
-                      index: entry.$1,
-                      draft: entry.$2,
-                      onDelete: () => _removeRequirement(entry.$1),
-                    ),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _isSubmitting ? null : _addRequirement,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: AppColors.lightSlot,
-                    side: BorderSide.none,
-                    foregroundColor: AppColors.text,
-                  ),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Dietary / Allergy Requirement'),
+                DietaryRequirementsSection(
+                  requirements: _requirements,
+                  onDelete: _removeRequirement,
+                  onAdd: () {
+                    if (!_isSubmitting) {
+                      setState(
+                        () => _requirements.add(DietaryRequirementDraft()),
+                      );
+                    }
+                  },
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppConstants.spacingSm),
@@ -192,13 +165,6 @@ class _BookingPageState extends State<BookingPage> {
       ),
     );
   }
-}
-
-class _RequirementDraft {
-  final controller = TextEditingController();
-  bool isAllergy = false;
-
-  void dispose() => controller.dispose();
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -380,96 +346,6 @@ class _InfoCard extends StatelessWidget {
           ),
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(child: Text(text)),
-        ],
-      ),
-    );
-  }
-}
-
-class _RequirementCard extends StatefulWidget {
-  const _RequirementCard({
-    required this.index,
-    required this.draft,
-    required this.onDelete,
-  });
-
-  final int index;
-  final _RequirementDraft draft;
-  final VoidCallback onDelete;
-
-  @override
-  State<_RequirementCard> createState() => _RequirementCardState();
-}
-
-class _RequirementCardState extends State<_RequirementCard> {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingSm),
-      color: AppColors.infoSurface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 5,
-                height: 5,
-                decoration: const BoxDecoration(
-                  color: AppColors.danger,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingXs),
-              Expanded(
-                child: Text(
-                  'REQUIREMENT ${(widget.index + 1).toString().padLeft(2, '0')}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: widget.onDelete,
-                icon: const Icon(Icons.delete_outline),
-                tooltip: 'Remove requirement',
-              ),
-            ],
-          ),
-          TextField(
-            controller: widget.draft.controller,
-            decoration: const InputDecoration(
-              hintText: 'Describe a dietary requirement or allergy',
-              fillColor: AppColors.surface,
-            ),
-          ),
-          Row(
-            children: [
-              Checkbox(
-                value: widget.draft.isAllergy,
-                onChanged: (value) =>
-                    setState(() => widget.draft.isAllergy = value ?? false),
-                visualDensity: VisualDensity.compact,
-              ),
-              const Expanded(child: Text('Kitchen Allergy Alert')),
-              if (widget.draft.isAllergy) ...[
-                const Icon(
-                  Icons.warning_amber_outlined,
-                  size: 16,
-                  color: AppColors.danger,
-                ),
-                const SizedBox(width: AppConstants.spacingXs),
-                Text(
-                  'FLAGGED FOR CHEF',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.danger,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ],
-          ),
         ],
       ),
     );
