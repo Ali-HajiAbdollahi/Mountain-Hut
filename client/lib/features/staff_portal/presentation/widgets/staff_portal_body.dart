@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/table_draft.dart';
-import 'table_allocation_modal.dart';
+import 'slot_capacity_section.dart';
 
 enum _StaffTab { capacity, booking }
 
@@ -52,23 +51,13 @@ class _StaffPortalBodyState extends State<StaffPortalBody> {
           ),
         ),
         Expanded(
-          child: switch (_tab) {
-            _StaffTab.capacity => Center(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final result = await showTableAllocationDialog(
-                      context,
-                      title: 'Configure Slot Tables',
-                      initialTables: const [TableDraft(tableNo: 1, seats: 4)],
-                    );
-                    debugPrint('result: ${result?.map((t) => t.toJson())}');
-                  },
-                  child: const Text('Test table dialog'),
-                ),
-              ),
-            _StaffTab.booking =>
+          child: IndexedStack(
+            index: _tab.index,
+            children: [
+              SlotCapacitySection(api: widget.api),
               const Center(child: Text('Phone / Walk-in Booking (TODO)')),
-          },
+            ],
+          ),
         ),
       ],
     );
