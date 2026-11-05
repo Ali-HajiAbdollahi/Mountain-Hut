@@ -1,7 +1,9 @@
-// MH-07 Reserve for an hiker — unit tests (hiker lookup API, HikerResult, debouncer, validators)
+// MH-07 Reserve for an hiker — unit tests (hiker lookup and staff booking API, HikerResult,
+// HikerChoice JSON, debouncer, validators)
 import 'package:client/core/network/mountain_hut_api.dart';
 import 'package:client/core/utils/debouncer.dart';
 import 'package:client/core/utils/validators.dart';
+import 'package:client/features/staff_portal/presentation/widgets/add_hiker_form.dart';
 import 'package:client/features/staff_portal/presentation/widgets/hiker_lookup_field.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,6 +48,72 @@ void main() {
           (_) => errorResponse(400, 'VALIDATION_ERROR', 'Search query must contain at least 2 characters'));
       await expectLater(api.searchHikers('r'),
           throwsA(isA<ApiException>().having((e) => e.message, 'message', contains('at least 2'))));
+    });
+  });
+
+  group('MountainHutApi.createStaffBooking', () {
+    test('sends POST /api/staff/bookings with hiker, slot, party size and requirements', () async {
+      final (:api, :requests) = apiWith((_) => jsonResponse({'booking': {'reference': 'MH-12'}}, 201));
+      final result = await api.createStaffBooking(
+        hiker: {'mode': 'existing', 'uID': 4},
+        slotId: 3,
+        people: 5,
+        requirements: [{'description': 'peanut allergy', 'allergy': true}],
+      );
+
+      expect(requests.single.method, 'POST');
+      expect(requests.single.path, '/api/staff/bookings');
+      expect(requests.single.json, {
+        'hiker': {'mode': 'existing', 'uID': 4},
+        'tsID': 3,
+        'n_people': 5,
+        'requirements': [{'description': 'peanut allergy', 'allergy': true}],
+      });
+      expect(result['booking']['reference'], 'MH-12');
+    });
+
+    test('requirements default to an empty list', () async {
+      final (:api, :requests) = apiWith((_) => jsonResponse({'booking': {}}, 201));
+      await api.createStaffBooking(hiker: {'mode': 'temporary', 'name': 'Rossi'}, slotId: 3, people: 2);
+      expect((requests.single.json! as Map)['requirements'], isEmpty);
+    });
+
+    test('a refusal (409 hiker already booked in the slot) becomes an ApiException', () async {
+      final (:api, requests: _) = apiWith(
+          (_) => errorResponse(409, 'CONFLICT', 'This hiker already has a booking in this slot'));
+      await expectLater(
+        api.createStaffBooking(hiker: {'mode': 'existing', 'uID': 4}, slotId: 3, people: 2),
+        throwsA(isA<ApiException>()
+            .having((e) => e.status, 'status', 409)
+            .having((e) => e.message, 'message', contains('already has a booking'))),
+      );
+    });
+  });
+
+  group('HikerChoice.toJson (the "hiker" field expected by the backend)', () {
+    test('existing hiker: mode and uID only', () {
+      final choice = ExistingHiker(const HikerResult(uId: 4, name: 'Elena', email: 'e@x.it', phone: '123'));
+      expect(choice.toJson(), {'mode': 'existing', 'uID': 4});
+    });
+
+    test('temporary hiker: name and phone', () {
+      expect(TemporaryHiker(name: 'Rossi Group', phone: '333').toJson(),
+          {'mode': 'temporary', 'name': 'Rossi Group', 'phone': '333'});
+    });
+
+    test('temporary hiker without phone: the phone key is omitted', () {
+      expect(TemporaryHiker(name: 'Rossi Group').toJson(), {'mode': 'temporary', 'name': 'Rossi Group'});
+    });
+
+    test('regular profile: name, email, phone and password', () {
+      final choice = RegisterHiker(name: 'Anna', email: 'anna@hut.it', phone: '333', password: 'password123');
+      expect(choice.toJson(), {
+        'mode': 'register',
+        'name': 'Anna',
+        'email': 'anna@hut.it',
+        'phone': '333',
+        'password': 'password123',
+      });
     });
   });
 

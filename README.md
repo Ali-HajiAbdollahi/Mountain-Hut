@@ -153,7 +153,7 @@ The `API_BASE_URL` build-time variable specifies the backend API endpoint. The b
 
 ## Testing
 
-The project includes automated unit and integration tests for both the backend and the Flutter client.
+The project includes automated unit and integration tests for both the backend and the Flutter client, and end-to-end tests that run the client against the backend.
 
 ### Backend tests
 
@@ -205,6 +205,41 @@ flutter test test/integration
 ```
 
 The unit tests verify individual client components and application logic. The integration tests cover the main application stories and their interactions with the client-side infrastructure.
+
+### End-to-end tests
+
+The end-to-end tests in `client/e2e_test/` run the real Flutter application against the real backend, one file per user story. Each test interacts with the application as a user would and then verifies the result through the API.
+
+Two terminals are required.
+
+Terminal 1, from the repository root, starts the backend on a fresh temporary database:
+
+```bash
+cd server
+npm run start:e2e
+```
+
+This database is created from `database/schema.sql` and `database/seed.sql` at every start; the development database is not modified and email delivery is disabled. Port `3001` must be free, so the development backend must be stopped first. Stop the backend with `Ctrl+C` when the tests have finished.
+
+Terminal 2, from the repository root, runs all the stories in Chrome:
+
+```bash
+cd client
+bash e2e_test/run_e2e_chrome.sh
+```
+
+The script requires Chrome, Flutter and Node.js. It downloads the ChromeDriver version matching the installed Chrome into `client/.dart_tool/`, serves the application on port `5173` (the origin allowed by the backend) and runs the stories one after the other. The run ends with `All E2E files passed.` or with the list of the failing files.
+
+Alternatively, the same tests can run on the Windows desktop application, which requires Windows Developer Mode and Visual Studio with the "Desktop development with C++" workload:
+
+```bash
+cd client
+bash e2e_test/run_e2e.sh
+```
+
+On Windows, the `bash` commands must be run from Git Bash. From PowerShell, use `& "C:\Program Files\Git\bin\bash.exe" e2e_test/run_e2e_chrome.sh` instead.
+
+If a Chrome run stops with `Timed out receiving message from renderer`, the browser failed to start: run the script again.
 
 ## Test Accounts and Sample Data
 
@@ -286,7 +321,7 @@ The implemented functionality is organized around the following seven user stori
 | MH-06 | Change a booking | Allows hikers to modify eligible existing reservations, subject to ownership, time restrictions, and capacity constraints. |
 | MH-07 | Reserve for an hiker | Allows employees to search for registered hikers and create reservations on their behalf, including for hikers whose profiles are created during the process. |
 
-Each user story is covered by backend unit and integration tests and corresponding Flutter unit and integration test files.
+Each user story is covered by backend unit and integration tests, corresponding Flutter unit and integration test files, and an end-to-end test file.
 
 ## Database
 
@@ -316,6 +351,9 @@ Mountain-Hut/
 │   │   ├── unit/            Flutter unit tests
 │   │   ├── integration/     Flutter integration tests
 │   │   └── helpers/         Shared test utilities
+│   ├── e2e_test/            End-to-end tests and run scripts
+│   │   └── helpers/         Shared end-to-end test utilities
+│   ├── test_driver/         Entry point used by flutter drive
 │   └── pubspec.yaml
 │
 ├── server/                  Node.js backend
@@ -325,6 +363,7 @@ Mountain-Hut/
 │   ├── routes/              REST API endpoints
 │   ├── services/            Business logic
 │   ├── mail/                Email-related components
+│   ├── scripts/             Backend start-up for the end-to-end tests
 │   ├── tests/
 │   │   ├── unit/            Backend unit tests
 │   │   ├── integration/     Backend integration tests

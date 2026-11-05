@@ -1,9 +1,11 @@
-// MH-07 Reserve for an hiker — integration tests (staff: quick hiker lookup and
-// "Add New Hiker" form with Temporary Hiker / Regular Profile). The backend is replaced by FakeApi.
-// Note: the "Phone / Walk-in Booking" tab of the staff portal is still a placeholder, so the
-// booking request made on behalf of the hiker (POST /api/staff/bookings) has no UI to test yet.
+// MH-07 Reserve for an hiker — integration tests (staff: quick hiker lookup, "Add New Hiker"
+// form with Temporary Hiker / Regular Profile, and the walk-in booking of the staff portal).
+// The backend is replaced by FakeApi.
 import 'package:client/core/network/mountain_hut_api.dart';
+import 'package:client/features/staff_portal/domain/entities/service_slot.dart';
 import 'package:client/features/staff_portal/presentation/widgets/add_hiker_form.dart';
+import 'package:client/features/staff_portal/presentation/widgets/staff_portal_body.dart';
+import 'package:client/features/staff_portal/presentation/widgets/walk_in_booking_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -210,6 +212,134 @@ void main() {
 
       expect(find.text('GUEST PROFILE MODE'), findsNothing);
       expect(find.text('Confirm Hiker'), findsOneWidget);
+    });
+  });
+
+  group('Walk-in booking (staff portal)', () {
+    final today = DateTime.now();
+    final day = formatYmd(today);
+
+    setUp(() {
+      api
+        ..hikers = [_elena]
+        ..slots = [
+          slotJson(tsID: 1, start: '$day 12:00', end: '$day 13:00', tables: [{'table_no': 1, 'seats': 6}]),
+          {...slotJson(tsID: 2, start: '$day 19:00', end: '$day 20:00', tables: [{'table_no': 1, 'seats': 2}]),
+            'free_seats': 0},
+        ];
+    });
+
+    Future<void> openWalkIn(WidgetTester tester) =>
+        pumpPage(tester, Scaffold(body: WalkInBookingSection(api: api)));
+
+    Future<void> chooseElena(WidgetTester tester) async {
+      await search(tester, 'rossi');
+      await tap(tester, find.text('Elena Rossi'));
+      await tap(tester, find.text('Confirm Hiker'));
+    }
+
+    ButtonStyleButton confirmButton(WidgetTester tester) => tester.widget<ButtonStyleButton>(
+        find.ancestor(of: find.text('Confirm Booking'), matching: find.bySubtype<ButtonStyleButton>()));
+
+    testWidgets('the "Phone / Walk-in Booking" tab of the staff portal opens the walk-in booking', (tester) async {
+      await pumpPage(tester, Scaffold(body: StaffPortalBody(api: api)));
+      await tap(tester, find.text('Phone / Walk-in Booking'));
+
+      expect(find.text('1. SELECT HIKER'), findsOneWidget);
+      expect(find.text('QUICK HIKER LOOKUP'), findsOneWidget);
+    });
+
+    testWidgets('booking details appear only after the hiker is confirmed, with the slots of today',
+        (tester) async {
+      await openWalkIn(tester);
+      expect(find.text('2. BOOKING DETAILS'), findsNothing);
+
+      await chooseElena(tester);
+      expect(find.text('2. BOOKING DETAILS'), findsOneWidget);
+      expect(find.text(formatLongDate(DateTime(today.year, today.month, today.day))), findsOneWidget);
+      expect(api.called('listSlots').single.args['date'], day);
+      expect(find.text('12:00 – 13:00'), findsOneWidget);
+      expect(find.text('6 free seats'), findsOneWidget);
+    });
+
+    testWidgets('a full slot is shown as "No free seats" and cannot be chosen', (tester) async {
+      await openWalkIn(tester);
+      await chooseElena(tester);
+
+      expect(find.text('No free seats'), findsOneWidget);
+      await tap(tester, find.text('19:00 – 20:00'));
+      expect(confirmButton(tester).onPressed, isNull);
+    });
+
+    testWidgets('"Confirm Booking" is disabled until a slot is chosen', (tester) async {
+      await openWalkIn(tester);
+      await chooseElena(tester);
+      expect(confirmButton(tester).onPressed, isNull);
+
+      await tap(tester, find.text('12:00 – 13:00'));
+      expect(confirmButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('books for an existing hiker with slot, party size and requirements', (tester) async {
+      await openWalkIn(tester);
+      await chooseElena(tester);
+      await tap(tester, find.text('12:00 – 13:00'));
+      await tap(tester, find.byIcon(Icons.add_circle_outline));
+      await tap(tester, find.byIcon(Icons.add_circle_outline));
+      await tap(tester, find.text('Add Dietary / Allergy Requirement'));
+      await tester.enterText(find.byType(TextField).last, 'peanut allergy');
+      await tap(tester, find.byType(Checkbox).last);
+      await tap(tester, find.text('Confirm Booking'));
+
+      expect(api.called('createStaffBooking').single.args, {
+        'hiker': {'mode': 'existing', 'uID': 4},
+        'slotId': 1,
+        'people': 3,
+        'requirements': [{'description': 'peanut allergy', 'allergy': true}],
+      });
+      expect(find.text('Booking MH-12 created'), findsOneWidget);
+      expect(find.text('2. BOOKING DETAILS'), findsNothing); // the booking form is reset
+    });
+
+    testWidgets('books for a temporary hiker who is not registered', (tester) async {
+      api.hikers = [];
+      await openWalkIn(tester);
+      await search(tester, 'martin');
+      await tester.enterText(fieldWithHint('e.g. Martin S. (Walk-in)'), 'Martin S.');
+      await tap(tester, find.text('Confirm Temporary Hiker'));
+      await tap(tester, find.text('12:00 – 13:00'));
+      await tap(tester, find.text('Confirm Booking'));
+
+      expect(api.called('createStaffBooking').single.args['hiker'], {'mode': 'temporary', 'name': 'Martin S.'});
+    });
+
+    testWidgets('an empty requirement blocks the booking', (tester) async {
+      await openWalkIn(tester);
+      await chooseElena(tester);
+      await tap(tester, find.text('12:00 – 13:00'));
+      await tap(tester, find.text('Add Dietary / Allergy Requirement'));
+      await tap(tester, find.text('Confirm Booking'));
+
+      expect(find.text('Complete or remove empty requirements.'), findsOneWidget);
+      expect(api.called('createStaffBooking'), isEmpty);
+    });
+
+    testWidgets('a refusal from the server is shown and the details stay on screen', (tester) async {
+      api.staffBookingError = const ApiException(409, 'CONFLICT', 'This hiker already has a booking in this slot');
+      await openWalkIn(tester);
+      await chooseElena(tester);
+      await tap(tester, find.text('12:00 – 13:00'));
+      await tap(tester, find.text('Confirm Booking'));
+
+      expect(find.text('This hiker already has a booking in this slot'), findsOneWidget);
+      expect(find.text('2. BOOKING DETAILS'), findsOneWidget);
+    });
+
+    testWidgets('a day without slots says so', (tester) async {
+      api.slots = [];
+      await openWalkIn(tester);
+      await chooseElena(tester);
+      expect(find.text('No slots available for this date.'), findsOneWidget);
     });
   });
 }
