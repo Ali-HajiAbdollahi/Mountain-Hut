@@ -345,7 +345,8 @@ class _BookingCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_calendar_outlined),
                 label: const Text('EDIT / CHANGE BOOKING'),
               ),
-              const SizedBox(height: AppConstants.spacingSm),
+              // Comment here for this sprint, will be added in the next one
+              /*const SizedBox(height: AppConstants.spacingSm),
               OutlinedButton.icon(
                 onPressed: onCancel,
                 icon: const Icon(Icons.cancel_outlined),
@@ -353,7 +354,7 @@ class _BookingCard extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.danger,
                 ),
-              ),
+              ),*/
             ] else ...[
               const _LockedWarningBox(),
               const SizedBox(height: AppConstants.spacingSm),
