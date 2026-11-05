@@ -268,5 +268,17 @@ class MountainHutApi {
   Future<Map<String, dynamic>> resendConfirmation(int id) =>
       _object('POST', ApiEndpoints.confirmation(id), body: {});
 
+    Future<List<Map<String, dynamic>>> searchHikers(String query) async {
+    final data = await _request(
+      'GET',
+      '/staff/hikers',
+      query: {'query': query},
+    );
+    if (data is! Map || data['hikers'] is! List) {
+      throw const ApiException(200, 'INVALID_RESPONSE', 'Expected hikers array.');
+    }
+    return (data['hikers'] as List).cast<Map<String, dynamic>>();
+  }
+  
   void close() => _client.close();
 }
