@@ -81,7 +81,8 @@ class _BookingPageState extends State<BookingPage> {
           api: widget.api,
           booking: booking,
           allocation: widget.allocation,
-          notificationSent: response['notification'] != null,
+          notificationSent:
+              (response['notification'] as Map?)?['status'] == 'accepted',
         ),
       );
     } on ApiException catch (error) {
