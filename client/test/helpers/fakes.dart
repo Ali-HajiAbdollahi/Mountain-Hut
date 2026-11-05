@@ -37,6 +37,8 @@ class FakeApi extends Fake implements MountainHutApi {
   ApiException? defineTablesError;
   List<Map<String, dynamic>> hikers = [];
   ApiException? hikersError;
+  Map<String, dynamic> staffBookingResponse = {'booking': {'bID': 12, 'reference': 'MH-12'}};
+  ApiException? staffBookingError;
 
   Iterable<Call> called(String method) => calls.where((c) => c.method == method);
 
@@ -89,6 +91,19 @@ class FakeApi extends Fake implements MountainHutApi {
     calls.add(Call('searchHikers', {'query': query}));
     if (hikersError != null) throw hikersError!;
     return hikers;
+  }
+
+  @override
+  Future<Map<String, dynamic>> createStaffBooking({
+    required Map<String, dynamic> hiker,
+    required int slotId,
+    required int people,
+    List<Map<String, dynamic>> requirements = const [],
+  }) async {
+    calls.add(Call('createStaffBooking',
+        {'hiker': hiker, 'slotId': slotId, 'people': people, 'requirements': requirements}));
+    if (staffBookingError != null) throw staffBookingError!;
+    return staffBookingResponse;
   }
 
   @override

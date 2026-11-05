@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node --env-file=.env index.js",
     "dev": "node --env-file=.env --watch index.js",
+    "start:e2e": "node --env-file-if-exists=.env scripts/start-e2e-server.js",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration"
