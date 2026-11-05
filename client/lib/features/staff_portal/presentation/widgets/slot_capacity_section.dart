@@ -103,7 +103,7 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
       context: context,
       initialDate: _date,
       firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 2),
+      lastDate: DateTime(now.year + 2, now.month, now.day),
     );
     if (picked == null) return;
     setState(() {

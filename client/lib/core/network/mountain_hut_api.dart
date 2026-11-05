@@ -279,6 +279,19 @@ class MountainHutApi {
     }
     return (data['hikers'] as List).cast<Map<String, dynamic>>();
   }
-  
+
+    Future<Map<String, dynamic>> createStaffBooking({
+    required Map<String, dynamic> hiker,
+    required int slotId,
+    required int people,
+    List<Map<String, dynamic>> requirements = const [],
+  }) =>
+      _object('POST', ApiEndpoints.staffBookings, body: {
+        'hiker': hiker,
+        'tsID': slotId,
+        'n_people': people,
+        'requirements': requirements,
+      });
+
   void close() => _client.close();
 }
