@@ -30,6 +30,14 @@ class FakeApi extends Fake implements MountainHutApi {
   ApiException? bookingsError;
   ApiException? updateError;
 
+  /// Slots per date ('YYYY-MM-DD'); when a date is missing, [slots] is used.
+  Map<String, List<Map<String, dynamic>>> slotsByDate = {};
+  Map<String, dynamic> createdSlot = {'tsID': 99};
+  ApiException? createSlotError;
+  ApiException? defineTablesError;
+  List<Map<String, dynamic>> hikers = [];
+  ApiException? hikersError;
+
   Iterable<Call> called(String method) => calls.where((c) => c.method == method);
 
   @override
@@ -45,7 +53,42 @@ class FakeApi extends Fake implements MountainHutApi {
   Future<List<Map<String, dynamic>>> listSlots(String date) async {
     calls.add(Call('listSlots', {'date': date}));
     if (slotsError != null) throw slotsError!;
-    return slots;
+    return slotsByDate[date] ?? slots;
+  }
+
+  @override
+  Future<Map<String, dynamic>> createSlot({
+    required String startTime,
+    required String endTime,
+    List<Map<String, dynamic>>? tables,
+    int? copyFromTsId,
+  }) async {
+    calls.add(Call('createSlot', {
+      'startTime': startTime,
+      'endTime': endTime,
+      'tables': tables,
+      'copyFromTsId': copyFromTsId,
+    }));
+    if (createSlotError != null) throw createSlotError!;
+    return createdSlot;
+  }
+
+  @override
+  Future<Map<String, dynamic>> defineTables(
+    int slotId, {
+    List<Map<String, dynamic>>? tables,
+    int? copyFromTsId,
+  }) async {
+    calls.add(Call('defineTables', {'slotId': slotId, 'tables': tables, 'copyFromTsId': copyFromTsId}));
+    if (defineTablesError != null) throw defineTablesError!;
+    return {'tsID': slotId};
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> searchHikers(String query) async {
+    calls.add(Call('searchHikers', {'query': query}));
+    if (hikersError != null) throw hikersError!;
+    return hikers;
   }
 
   @override
@@ -147,6 +190,24 @@ Map<String, dynamic> bookingJson({
 String slotTime(DateTime t) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}';
+}
+
+/// A slot as returned by the backend (GET /api/timeslots).
+Map<String, dynamic> slotJson({
+  required int tsID,
+  required String start,
+  required String end,
+  List<Map<String, dynamic>> tables = const [],
+}) {
+  final capacity = tables.fold<int>(0, (n, t) => n + (t['seats'] as int));
+  return {
+    'tsID': tsID,
+    'start_time': start,
+    'end_time': end,
+    'capacity': capacity,
+    'free_seats': capacity,
+    'tables': tables,
+  };
 }
 
 /// Renders [page] on a tall screen so that whole pages fit without scrolling.

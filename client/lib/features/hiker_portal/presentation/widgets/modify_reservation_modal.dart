@@ -182,240 +182,246 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
         widget.booking['reference'] ?? 'MH-${widget.booking['bID']}';
     return SafeArea(
       top: false,
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(maxHeight: 700),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppConstants.radiusMd),
-          ),
+      // Material (not a coloured Container) so that the ListTiles inside can paint
+      // their background and ink splashes on a visible Material ancestor.
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppConstants.radiusMd),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'MODIFY RESERVATION',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                        color: AppColors.textSecondary,
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 700),
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'MODIFY RESERVATION',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: _saving
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Booking $reference',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                    IconButton(
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
-              ),
-              const Divider(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_loading)
-                        const Center(child: CircularProgressIndicator())
-                      else ...[
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('DATE SELECTION'),
-                          subtitle: Text(_dateKey(_selectedDate)),
-                          trailing: const Icon(Icons.calendar_today_outlined),
-                          onTap: _saving ? null : _selectDate,
-                        ),
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Eligible mountain dining calendar range',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 11,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Booking $reference',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const Divider(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_loading)
+                          const Center(child: CircularProgressIndicator())
+                        else ...[
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('DATE SELECTION'),
+                            subtitle: Text(_dateKey(_selectedDate)),
+                            trailing: const Icon(Icons.calendar_today_outlined),
+                            onTap: _saving ? null : _selectDate,
+                          ),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Eligible mountain dining calendar range',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                              ),
                             ),
+                          ),
+                          const SizedBox(height: AppConstants.spacingSm),
+                          DropdownButtonFormField<int>(
+                            initialValue:
+                                _slots.any((slot) => slot['tsID'] == _slotId)
+                                ? _slotId
+                                : null,
+                            decoration: const InputDecoration(
+                              labelText: 'TIME SLOT',
+                            ),
+                            items: _slots
+                                .map((slot) {
+                                  final id = int.tryParse('${slot['tsID']}');
+                                  return DropdownMenuItem(
+                                    value: id,
+                                    child: Text(_slotLabel(slot)),
+                                  );
+                                })
+                                .where((item) => item.value != null)
+                                .toList(),
+                            onChanged: _saving
+                                ? null
+                                : (value) => setState(() => _slotId = value),
+                          ),
+                        ],
+                        const SizedBox(height: AppConstants.spacingMd),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('PARTY SIZE'),
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: _people > 1
+                                      ? () => setState(() => _people--)
+                                      : null,
+                                  icon: const Icon(Icons.remove),
+                                ),
+                                Text('$_people'),
+                                IconButton(
+                                  onPressed: () => setState(() => _people++),
+                                  icon: const Icon(Icons.add),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const Text(
+                          'Live Capacity verified for current group size',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.tertiary,
                           ),
                         ),
                         const SizedBox(height: AppConstants.spacingSm),
-                        DropdownButtonFormField<int>(
-                          initialValue:
-                              _slots.any((slot) => slot['tsID'] == _slotId)
-                              ? _slotId
-                              : null,
-                          decoration: const InputDecoration(
-                            labelText: 'TIME SLOT',
-                          ),
-                          items: _slots
-                              .map((slot) {
-                                final id = int.tryParse('${slot['tsID']}');
-                                return DropdownMenuItem(
-                                  value: id,
-                                  child: Text(_slotLabel(slot)),
-                                );
-                              })
-                              .where((item) => item.value != null)
-                              .toList(),
-                          onChanged: _saving
-                              ? null
-                              : (value) => setState(() => _slotId = value),
-                        ),
-                      ],
-                      const SizedBox(height: AppConstants.spacingMd),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('PARTY SIZE'),
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: _people > 1
-                                    ? () => setState(() => _people--)
-                                    : null,
-                                icon: const Icon(Icons.remove),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('DIETARY / ALLERGIES'),
+                            Text(
+                              'Dynamic list',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
                               ),
-                              Text('$_people'),
-                              IconButton(
-                                onPressed: () => setState(() => _people++),
-                                icon: const Icon(Icons.add),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const Text(
-                        'Live Capacity verified for current group size',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.tertiary,
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: AppConstants.spacingSm),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('DIETARY / ALLERGIES'),
-                          Text(
-                            'Dynamic list',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 11,
+                        for (
+                          var index = 0;
+                          index < _requirements.length;
+                          index++
+                        )
+                          Container(
+                            color: AppColors.infoSurface,
+                            margin: const EdgeInsets.only(
+                              top: AppConstants.spacingSm,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.spacingSm,
+                              vertical: 4,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _requirements[index]['allergy'] == true
+                                      ? Icons.auto_awesome
+                                      : Icons.eco_outlined,
+                                  color: _requirements[index]['allergy'] == true
+                                      ? AppColors.danger
+                                      : AppColors.tertiary,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: AppConstants.spacingSm),
+                                Expanded(
+                                  child: Text(
+                                    _requirements[index]['description']
+                                            ?.toString() ??
+                                        '',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: _saving
+                                      ? null
+                                      : () => setState(
+                                          () => _requirements.removeAt(index),
+                                        ),
+                                  icon: const Icon(Icons.close, size: 18),
+                                  tooltip: 'Remove requirement',
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                      for (var index = 0; index < _requirements.length; index++)
-                        Container(
-                          color: AppColors.infoSurface,
-                          margin: const EdgeInsets.only(
-                            top: AppConstants.spacingSm,
+                        const SizedBox(height: AppConstants.spacingSm),
+                        TextField(
+                          controller: _newRequirementController,
+                          enabled: !_saving,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. 1 Vegan, Nut allergy, Gluten-Free',
+                            filled: true,
+                            fillColor: AppColors.lightControl,
+                            border: InputBorder.none,
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.spacingSm,
-                            vertical: 4,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _requirements[index]['allergy'] == true
-                                    ? Icons.auto_awesome
-                                    : Icons.eco_outlined,
-                                color: _requirements[index]['allergy'] == true
-                                    ? AppColors.danger
-                                    : AppColors.tertiary,
-                                size: 18,
-                              ),
-                              const SizedBox(width: AppConstants.spacingSm),
-                              Expanded(
-                                child: Text(
-                                  _requirements[index]['description']
-                                          ?.toString() ??
-                                      '',
-                                  style: const TextStyle(fontSize: 12),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          value: _newRequirementAllergy,
+                          onChanged: _saving
+                              ? null
+                              : (value) => setState(
+                                  () => _newRequirementAllergy = value == true,
                                 ),
-                              ),
-                              IconButton(
-                                onPressed: _saving
-                                    ? null
-                                    : () => setState(
-                                        () => _requirements.removeAt(index),
-                                      ),
-                                icon: const Icon(Icons.close, size: 18),
-                                tooltip: 'Remove requirement',
-                              ),
-                            ],
+                          title: const Text(
+                            'Kitchen Allergy Alert (High Priority)',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: _saving ? null : _addRequirement,
+                            icon: const Icon(Icons.add),
+                            label: const Text(
+                              'ADD DIETARY / ALLERGY REQUIREMENT',
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF393939),
+                              foregroundColor: Colors.white,
+                            ),
                           ),
                         ),
-                      const SizedBox(height: AppConstants.spacingSm),
-                      TextField(
-                        controller: _newRequirementController,
-                        enabled: !_saving,
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. 1 Vegan, Nut allergy, Gluten-Free',
-                          filled: true,
-                          fillColor: AppColors.lightControl,
-                          border: InputBorder.none,
-                        ),
-                      ),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        value: _newRequirementAllergy,
-                        onChanged: _saving
-                            ? null
-                            : (value) => setState(
-                                () => _newRequirementAllergy = value == true,
-                              ),
-                        title: const Text(
-                          'Kitchen Allergy Alert (High Priority)',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        controlAffinity: ListTileControlAffinity.leading,
-                      ),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: _saving ? null : _addRequirement,
-                          icon: const Icon(Icons.add),
-                          label: const Text(
-                            'ADD DIETARY / ALLERGY REQUIREMENT',
+                        if (_error != null)
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: AppColors.danger),
                           ),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF393939),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                      if (_error != null)
-                        Text(
-                          _error!,
-                          style: const TextStyle(color: AppColors.danger),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _saving || _slotId == null ? null : _save,
-                  child: Text(_saving ? 'SAVING...' : 'SAVE CHANGES'),
+                const SizedBox(height: AppConstants.spacingSm),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _saving || _slotId == null ? null : _save,
+                    child: Text(_saving ? 'SAVING...' : 'SAVE CHANGES'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
