@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'slot_capacity_section.dart';
+import 'walk_in_booking_section.dart';
 
 enum _StaffTab { capacity, booking }
 
@@ -55,7 +56,7 @@ class _StaffPortalBodyState extends State<StaffPortalBody> {
             index: _tab.index,
             children: [
               SlotCapacitySection(api: widget.api),
-              const Center(child: Text('Phone / Walk-in Booking (TODO)')),
+              WalkInBookingSection(api: widget.api),
             ],
           ),
         ),

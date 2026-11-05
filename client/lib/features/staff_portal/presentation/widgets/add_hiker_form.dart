@@ -9,17 +9,34 @@ enum HikerMode { quickAdd, fullRegistration }
 
 /// The result returned when the employee confirms a hiker choice.
 /// Matches the three modes of the backend: existing / temporary / register.
-sealed class HikerChoice {}
+sealed class HikerChoice {
+  Map<String, dynamic> toJson();
+}
 
 class ExistingHiker extends HikerChoice {
   ExistingHiker(this.hiker);
+
   final HikerResult hiker;
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'mode': 'existing',
+        'uID': hiker.uId,
+      };
 }
 
 class TemporaryHiker extends HikerChoice {
   TemporaryHiker({required this.name, this.phone});
+
   final String name;
   final String? phone;
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'mode': 'temporary',
+        'name': name,
+        if (phone != null) 'phone': phone,
+      };
 }
 
 class RegisterHiker extends HikerChoice {
@@ -29,10 +46,20 @@ class RegisterHiker extends HikerChoice {
     required this.phone,
     required this.password,
   });
+
   final String name;
   final String email;
   final String phone;
   final String password;
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'mode': 'register',
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'password': password,
+      };
 }
 
 /// Hiker lookup + "Add New Hiker" panel (Quick Add / Full Registration).
