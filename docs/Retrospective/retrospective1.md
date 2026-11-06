@@ -22,8 +22,6 @@
 | MH-7 Reserve for an hiker | 6 | 3 | 16h 00m | 15h 35m |
 | **Total** | **49** | **30** | **98h 50m** | **100h 45m** |
 
-> Place technical tasks corresponding to story `#0` and leave out story points (not applicable in this case)
-> 
 - Hours per task per person:
 average 2.06 h (≈ 2h 03m), standard deviation 0.78 h (≈ 47m), over 49 tasks
 - Total task estimation error ratio:
@@ -76,6 +74,6 @@ average 2.06 h (≈ 2h 03m), standard deviation 0.78 h (≈ 47m), over 49 tasks
 
 - For the next sprint we want a clearer order in which tasks should be carried out, and better coordination among team members. The aim is to avoid bottlenecks where some people can’t move forward on the project because they are waiting for a teammate to finish their part. To achieve this, during sprint planning we will map the dependencies between tasks and schedule the blocking ones (e.g. DB schema, APIs) first, so that frontend and testing work can start as early as possible.
 
-One thing you are proud of as a Team
+**One thing you are proud of as a Team**
 
 - We delivered all 7 committed stories (30/30 points), while keeping our overall estimation error under 2%.
