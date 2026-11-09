@@ -32,6 +32,16 @@ CREATE TABLE slot_tables (
   PRIMARY KEY (tsID, table_no)
 ) STRICT;
  
+-- Menus offered in each slot (MH-10, shown to users in MH-11).
+-- A slot can offer several menus; they are deleted together with the slot.
+CREATE TABLE menus (
+  mID          INTEGER PRIMARY KEY,
+  tsID         INTEGER NOT NULL REFERENCES timeslots(tsID) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,             -- e.g. 'Menu of the day', 'Vegetarian menu'
+  description  TEXT    NOT NULL,             -- dishes offered
+  UNIQUE (tsID, name)                        -- also serves as the index on tsID
+) STRICT;
+ 
 -- uID NULL  => temporary hiker (entered by an employee, MH-07)
 -- contact_* => booking contact, always present (prefilled from the profile if registered)
 CREATE TABLE bookings (
