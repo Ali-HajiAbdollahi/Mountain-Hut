@@ -4,6 +4,9 @@ import { requireRole } from '../middleware/auth.js';
 
 export function createSlotRouter(service) {
   const router = Router();
+  router.post('/repeat-week', requireRole('employee'), (req, res) => {
+    res.status(201).json(service.repeatWeek(req.body));
+  });
   router.get('/',(req,res)=>res.json(service.list(req.query.date)));
   router.get('/:id',(req,res)=>res.json(service.details(pathId(req.params.id))));
   router.post('/',requireRole('employee'),(req,res)=>{
