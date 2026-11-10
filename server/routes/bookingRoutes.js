@@ -14,6 +14,11 @@ export function createBookingRouter(service,mail,changeService) {
   router.get('/',(req,res)=>res.json(service.list(req.user)));
   router.get('/:id',(req,res)=>res.json(service.owned(pathId(req.params.id),req.user)));
   
+  router.delete('/:id', (req, res) => {
+    service.cancel(pathId(req.params.id), req.user);
+    res.status(204).end();
+  });
+
   router.patch('/:id', (req, res) => {
     const booking = changeService.update(
       pathId(req.params.id),
