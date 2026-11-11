@@ -33,7 +33,7 @@ export function createSlotDao(db) {
     insertTables(id, rows) {
       for (const t of rows) insertTable.run(id,t.table_no,t.seats);
     },
-    
+
     // MH-135: copies the table layout of each source slot into a new slot at the
     // destination times supplied by the service: [{ sourceTsID, start_time, end_time }].
     // Only table numbers and capacities are copied, so the new slots have no bookings.
