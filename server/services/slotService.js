@@ -1,3 +1,4 @@
+import { slotMenuInput } from '../domain/slotMenuInput.js';
 import { readWeeks, mapWeeklySlot } from '../domain/weekSchedule.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
@@ -54,6 +55,11 @@ export function createSlotService(dao) {
         dao.insertTables(id,rows);
         return details(id);
       });
+    },
+    publishMenu(id, body) {
+      const menu = dao.saveSlotMenu(id, slotMenuInput(body));
+      if (!menu) throw new NotFoundError('Slot not found');
+      return menu;
     },
     defineTables(id,body) {
       onlyKeys(body,['tables','copy_from_tsID']);

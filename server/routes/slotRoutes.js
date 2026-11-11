@@ -13,6 +13,9 @@ export function createSlotRouter(service) {
     const slot=service.create(req.body);
     res.location(`/api/timeslots/${slot.tsID}`).status(201).json(slot);
   });
+  router.put('/:id/menu', requireRole('employee'), (req, res) => {
+    res.json(service.publishMenu(pathId(req.params.id), req.body));
+  });
   router.put('/:id/tables',requireRole('employee'),(req,res)=>
     res.json(service.defineTables(pathId(req.params.id),req.body)));
   return router;
