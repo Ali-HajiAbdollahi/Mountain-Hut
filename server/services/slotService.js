@@ -1,3 +1,4 @@
+import { readWeeks, mapWeeklySlot } from '../domain/weekSchedule.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
 import { dateOnly, validateInterval } from '../domain/time.js';
@@ -33,6 +34,13 @@ export function createSlotService(dao) {
     return rows;
   }
   return {
+    repeatWeek(body) {
+      const { from, to, days } = readWeeks(body);
+      const slots = dao.listRange(from, to);
+      if (!slots.length) throw new ValidationError('Source week has no slots');
+      const copies = slots.map(slot => mapWeeklySlot(slot, days));
+      return { slotIds: dao.copyWeek(copies) };
+    },
     details,
     list(date) { return dao.list(dateOnly(date)).map(s=>details(s.tsID)); },
     create(body) {
