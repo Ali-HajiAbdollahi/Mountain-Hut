@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { HUT_ZONE, dateOnly, validateInterval } from './time.js';
+import { HUT_ZONE, dateOnly, slotTime, validateInterval } from './time.js';
 import { onlyKeys } from './validation.js';
 import { ValidationError } from '../errors.js';
 
@@ -30,5 +30,9 @@ export function mapWeeklySlot(slot, days) {
   const start_time = shiftLocal(slot.start_time, days);
   const end_time = shiftLocal(slot.end_time, days);
   validateInterval(start_time, end_time);
+  const elapsed = (start, end) => slotTime(end).toMillis() - slotTime(start).toMillis();
+  if (elapsed(slot.start_time, slot.end_time) !== elapsed(start_time, end_time)) {
+    throw new ValidationError('Clock change would alter slot duration');
+  }
   return { sourceTsID: slot.tsID, start_time, end_time };
 }
