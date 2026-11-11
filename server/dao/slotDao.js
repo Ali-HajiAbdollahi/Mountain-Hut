@@ -10,7 +10,7 @@ export function createSlotDao(db) {
     WHERE st.tsID = ? GROUP BY st.table_no, st.seats ORDER BY st.table_no`);
   const insert = db.prepare('INSERT INTO timeslots(start_time,end_time) VALUES (?,?)');
   const insertTable = db.prepare('INSERT INTO slot_tables(tsID,table_no,seats) VALUES (?,?,?)');
-  return {
+  const dao = {
     atomic: action => transaction(db, action),
     find: id => slot.get(id),
     tables: id => tables.all(id),
@@ -18,9 +18,24 @@ export function createSlotDao(db) {
       'SELECT tsID FROM timeslots WHERE start_time=? AND end_time=?').get(a,b),
     list: date => db.prepare(`SELECT tsID FROM timeslots
       WHERE substr(start_time,1,10)=? ORDER BY start_time,tsID`).all(date),
+    // Slots starting in [from, to), e.g. a week; times are 'YYYY-MM-DD HH:MM' strings.
+    listRange: (from,to) => db.prepare(`SELECT tsID,start_time,end_time FROM timeslots
+      WHERE start_time>=? AND start_time<? ORDER BY start_time,tsID`).all(from,to),
     insert(a,b) { return Number(insert.run(a,b).lastInsertRowid); },
     insertTables(id, rows) {
       for (const t of rows) insertTable.run(id,t.table_no,t.seats);
     },
+    
+    // MH-135: copies the table layout of each source slot into a new slot at the
+    // destination times supplied by the service: [{ sourceTsID, start_time, end_time }].
+    // Only table numbers and capacities are copied, so the new slots have no bookings.
+    // All-or-nothing: any failing insert (e.g. an existing slot) rolls back the whole
+    // copy and the error propagates. Returns the new tsIDs, in the order of the input.
+    copyWeek: copies => dao.atomic(() => copies.map(({ sourceTsID, start_time, end_time }) => {
+      const id = dao.insert(start_time, end_time);
+      dao.insertTables(id, dao.tables(sourceTsID).map(({ table_no, seats }) => ({ table_no, seats })));
+      return id;
+    })),
   };
+  return dao;
 }
