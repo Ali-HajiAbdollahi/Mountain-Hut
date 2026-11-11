@@ -23,6 +23,11 @@ CREATE TABLE timeslots (
   UNIQUE (start_time, end_time)
 ) STRICT;
  
+CREATE TABLE slot_menus (
+  tsID INTEGER PRIMARY KEY REFERENCES timeslots(tsID) ON DELETE CASCADE,
+  menu TEXT NOT NULL CHECK (length(trim(menu)) > 0)
+) STRICT;
+
 -- Table layout specific to each slot (no fixed set, MH-02).
 -- Slot capacity = SUM(seats).
 CREATE TABLE slot_tables (
