@@ -43,7 +43,12 @@ export function createSlotService(dao) {
       return { slotIds: dao.copyWeek(copies) };
     },
     details,
-    list(date) { return dao.list(dateOnly(date)).map(s=>details(s.tsID)); },
+    list(date) {
+      return dao.list(dateOnly(date)).map(slot => ({
+        ...details(slot.tsID),
+        menu: slot.menu,
+      }));
+    },
     create(body) {
       onlyKeys(body,['start_time','end_time','tables','copy_from_tsID']);
       validateInterval(body.start_time,body.end_time);
