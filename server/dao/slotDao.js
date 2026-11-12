@@ -16,8 +16,13 @@ export function createSlotDao(db) {
     tables: id => tables.all(id),
     sameInterval: (a,b) => db.prepare(
       'SELECT tsID FROM timeslots WHERE start_time=? AND end_time=?').get(a,b),
-    list: date => db.prepare(`SELECT tsID FROM timeslots
-      WHERE substr(start_time,1,10)=? ORDER BY start_time,tsID`).all(date),
+    list: date => db.prepare(`
+      SELECT s.tsID, sm.menu
+      FROM timeslots AS s
+      LEFT JOIN slot_menus AS sm ON sm.tsID = s.tsID
+      WHERE substr(s.start_time, 1, 10) = ?
+      ORDER BY s.start_time, s.tsID
+    `).all(date),
     // Slots starting in [from, to), e.g. a week; times are 'YYYY-MM-DD HH:MM' strings.
     listRange: (from,to) => db.prepare(`SELECT tsID,start_time,end_time FROM timeslots
       WHERE start_time>=? AND start_time<? ORDER BY start_time,tsID`).all(from,to),
