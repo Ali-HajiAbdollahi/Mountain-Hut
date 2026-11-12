@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/auth_context.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../../../booking/domain/entities/booking_allocation.dart';
+import '../widgets/hut_welcome_banner.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({
@@ -303,17 +304,8 @@ class _ExplorePageState extends State<ExplorePage> {
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
       appBar: AppBar(
-        leading: const Icon(
-          Icons.landscape_outlined,
-          color: AppColors.tertiary,
-        ),
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ELEVATION 2,140M', style: TextStyle(fontSize: 10)),
-            Text('Search', style: TextStyle(fontSize: 16)),
-          ],
-        ),
+        automaticallyImplyLeading: false,
+        title: const HutHomeHeader(),
       ),
       body: SafeArea(
         child: Align(
@@ -323,42 +315,20 @@ class _ExplorePageState extends State<ExplorePage> {
               maxWidth: AppConstants.exploreContentMaxWidth,
             ),
             child: ListView(
-              padding: const EdgeInsets.all(AppConstants.spacingMd),
+              padding: const EdgeInsets.fromLTRB(
+                AppConstants.spacingMd,
+                AppConstants.spacingMd,
+                AppConstants.spacingMd,
+                AppConstants.spacingXl,
+              ),
               children: [
-                const Text(
-                  'ELEVATION 2,140M',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                const HutWelcomeBanner(),
+                const SizedBox(height: AppConstants.spacingMd),
+                Text(
+                  'Check Table Availability',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                const SizedBox(height: AppConstants.spacingSm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Check Table Availability',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Material(
-                      color: AppColors.tertiary.withValues(alpha: 0.18),
-                      child: IconButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst),
-                        color: AppColors.tertiary,
-                        icon: const Icon(Icons.home_outlined),
-                        tooltip: 'Home',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppConstants.spacingSm),
-                const Text(
-                  'Welcome to Mountain Hut. Savor hot meals and panoramic ridge views. Plan your stop below.',
                 ),
                 const SizedBox(height: AppConstants.spacingMd),
                 _AvailabilityCard(
