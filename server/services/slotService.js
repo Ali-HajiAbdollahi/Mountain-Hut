@@ -12,6 +12,9 @@ export function createSlotService(dao) {
     return { ...s, capacity: tables.reduce((n,t)=>n+t.seats,0),
       free_seats: tables.reduce((n,t)=>n+t.free_seats,0), tables };
   }
+  function detailsWithMenu(id) {
+    return { ...details(id), menu: dao.menu(id) };
+  }
   function layout(body) {
     const hasTables = Object.hasOwn(body,'tables');
     const hasSource = Object.hasOwn(body,'copy_from_tsID');
@@ -43,6 +46,7 @@ export function createSlotService(dao) {
       return { slotIds: dao.copyWeek(copies) };
     },
     details,
+    detailsWithMenu,
     list(date) {
       return dao.list(dateOnly(date)).map(slot => ({
         ...details(slot.tsID),

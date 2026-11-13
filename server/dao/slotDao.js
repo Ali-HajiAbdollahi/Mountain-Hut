@@ -10,9 +10,11 @@ export function createSlotDao(db) {
     WHERE st.tsID = ? GROUP BY st.table_no, st.seats ORDER BY st.table_no`);
   const insert = db.prepare('INSERT INTO timeslots(start_time,end_time) VALUES (?,?)');
   const insertTable = db.prepare('INSERT INTO slot_tables(tsID,table_no,seats) VALUES (?,?,?)');
+  const menuForSlot = db.prepare('SELECT menu FROM slot_menus WHERE tsID = ?');
   const dao = {
     atomic: action => transaction(db, action),
     find: id => slot.get(id),
+    menu: id => menuForSlot.get(id)?.menu ?? null,
     tables: id => tables.all(id),
     sameInterval: (a,b) => db.prepare(
       'SELECT tsID FROM timeslots WHERE start_time=? AND end_time=?').get(a,b),
