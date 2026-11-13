@@ -62,10 +62,10 @@ class _PassagePointsFieldState extends State<PassagePointsField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-          ..._controllers.indexed.map((entry) {
-            final i = entry.$1;
-            final ctrl = entry.$2;
-            return Padding(
+      ..._controllers.indexed.map((entry) {
+          final i = entry.$1;
+          final ctrl = entry.$2;
+          return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               children: [
