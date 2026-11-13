@@ -13,8 +13,11 @@ import { createAuthService } from '../../services/authService.js';
 import { createBookingService } from '../../services/bookingService.js';
 import { createBookingChangeService } from '../../services/bookingChangeService.js';
 import { createStaffBookingService } from '../../services/staffBookingService.js';
+import { createHikeDao } from '../../dao/hikeDao.js';
+import { createHikeService } from '../../services/hikeService.js';
 import { createBookingRouter } from '../../routes/bookingRoutes.js';
 import { createStaffBookingRouter } from '../../routes/staffBookingRoutes.js';
+import { createHikeRouter } from '../../routes/hikeRoutes.js';
 
 const SCHEMA = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../database/schema.sql');
 
@@ -58,8 +61,10 @@ export function createTestContext() {
   const staffBookingRouter = createStaffBookingRouter(
     createStaffBookingService(users, bookingDao, slotDao, auth),
   );
-  const app = createApp(db, { bookingRouter, staffBookingRouter });
-  return { db, app, mail, auth };
+  const hikeDao = createHikeDao(db);
+  const hikeRouter = createHikeRouter(createHikeService(hikeDao));
+  const app = createApp(db, { bookingRouter, staffBookingRouter, hikeRouter });
+  return { db, app, mail, auth, hikeDao };
 }
 
 // Registers a hiker through the real auth service and returns the public profile
