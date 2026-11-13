@@ -8,7 +8,7 @@ export function createSlotRouter(service) {
     res.status(201).json(service.repeatWeek(req.body));
   });
   router.get('/',(req,res)=>res.json(service.list(req.query.date)));
-  router.get('/:id',(req,res)=>res.json(service.details(pathId(req.params.id))));
+  router.get('/:id',(req,res)=>res.json(service.detailsWithMenu(pathId(req.params.id))));
   router.post('/',requireRole('employee'),(req,res)=>{
     const slot=service.create(req.body);
     res.location(`/api/timeslots/${slot.tsID}`).status(201).json(slot);
