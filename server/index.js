@@ -10,6 +10,9 @@ import { createUserDao } from './dao/userDao.js';
 import { createAuthService } from './services/authService.js';
 import { createStaffBookingService } from './services/staffBookingService.js';
 import { createStaffBookingRouter } from './routes/staffBookingRoutes.js';
+import { createHikeDao } from './dao/hikeDao.js';
+import { createHikeService } from './services/hikeService.js';
+import { createHikeRouter } from './routes/hikeRoutes.js';
 
 const db = openDb();
 db.exec('PRAGMA busy_timeout = 5000');
@@ -33,8 +36,11 @@ const staffService = createStaffBookingService(
   staffAuth,
 );
 const staffBookingRouter = createStaffBookingRouter(staffService);
+const hikeDao = createHikeDao(db);
+const hikeService = createHikeService(hikeDao);
+const hikeRouter = createHikeRouter(hikeService);
 const port = Number(process.env.PORT || 3001);
-const server = createApp(db, { bookingRouter, staffBookingRouter }).listen(port, () => {
+const server = createApp(db, { bookingRouter, staffBookingRouter, hikeRouter }).listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
 
