@@ -1,3 +1,5 @@
+import { slotMenuInput } from '../domain/slotMenuInput.js';
+import { readWeeks, mapWeeklySlot } from '../domain/weekSchedule.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
 import { dateOnly, validateInterval } from '../domain/time.js';
@@ -33,8 +35,20 @@ export function createSlotService(dao) {
     return rows;
   }
   return {
+    repeatWeek(body) {
+      const { from, to, days } = readWeeks(body);
+      const slots = dao.listRange(from, to);
+      if (!slots.length) throw new ValidationError('Source week has no slots');
+      const copies = slots.map(slot => mapWeeklySlot(slot, days));
+      return { slotIds: dao.copyWeek(copies) };
+    },
     details,
-    list(date) { return dao.list(dateOnly(date)).map(s=>details(s.tsID)); },
+    list(date) {
+      return dao.list(dateOnly(date)).map(slot => ({
+        ...details(slot.tsID),
+        menu: slot.menu,
+      }));
+    },
     create(body) {
       onlyKeys(body,['start_time','end_time','tables','copy_from_tsID']);
       validateInterval(body.start_time,body.end_time);
@@ -46,6 +60,11 @@ export function createSlotService(dao) {
         dao.insertTables(id,rows);
         return details(id);
       });
+    },
+    publishMenu(id, body) {
+      const menu = dao.saveSlotMenu(id, slotMenuInput(body));
+      if (!menu) throw new NotFoundError('Slot not found');
+      return menu;
     },
     defineTables(id,body) {
       onlyKeys(body,['tables','copy_from_tsID']);

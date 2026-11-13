@@ -1,0 +1,44 @@
+{
+  "logoUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuDX6_scryRtaRalWuc1l2sldAe1P5qlM1vlwHsdEZN7M9ztBHrvXryij0fEm2p5Mdaft2pcntJJ2sOSD_-uasZK4D86mouLP-rBSN4VQduu1x7z7CJZEm2Xwr6jMVH-jVCscUh_U5SkPPLDe58_z3g5GJiiWl1AJcSDMmPB7RZ8Qt20dQgsR80c7CqkzGtxqG-rqZ-9phpJ5iYfDYgIvPFv--aUqasfEYGfvpdlPvg",
+  "homeSubtitle": "HOME & AVAILABILITY",
+  "elevation": "Elevation 2,140m",
+  "name": "Rifugio Alpine • Mountain Hut",
+  "description": "A traditional high-mountain refuge owned by the Alpine Club, offering warm communal dining, shared sleeping quarters, shelter in changing mountain weather, and e-bike charging facilities for hikers and mountaineers.",
+  "amenities": [
+    { "type": "dining", "label": "Communal Dining" },
+    { "type": "shelter", "label": "Overnight Shelter" },
+    { "type": "charging", "label": "E-Bike Charging" }
+  ],
+  "locationLabel": "Location",
+  "locationName": "Maritime Alps • Upper Valley Ridge",
+  "locationDescription": "High mountain pass ridge connecting Val Tanaro and Valle Pesio",
+  "coordinates": "GPS: 44.1982° N, 7.6645° E",
+  "directionsLabel": "How to Get Here",
+  "trails": [
+    {
+      "name": "From Pian del Colle (Trail #104)",
+      "duration": "2h 30m",
+      "description": "+650m elevation gain • Moderate (E)"
+    },
+    {
+      "name": "From Casterino Valley (Trail #108)",
+      "duration": "3h 15m",
+      "description": "+820m elevation gain • Scenic forest & ridge trail"
+    }
+  ],
+  "nearbyLabel": "Nearby Spots",
+  "nearby": [
+    {
+      "name": "Cima Marguareis Peak (2,651m)",
+      "description": "1h 45m ascent • Panoramic summit views"
+    },
+    {
+      "name": "Lago Verde Alpine Lake",
+      "description": "45m walk • Family-friendly mountain lake"
+    },
+    {
+      "name": "Colle del Pas High Pass",
+      "description": "1h 10m hike • Connects to neighboring alpine valleys"
+    }
+  ]
+}
