@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/iso_week.dart';
 import '../../domain/entities/service_slot.dart';
 import 'slot_form_dialog.dart';
+import 'slot_menu_configuration_card.dart';
 import 'table_allocation_modal.dart';
 
 class SlotCapacitySection extends StatefulWidget {
@@ -256,6 +257,22 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
         _slotsCard(),
         const SizedBox(height: 16),
         _allocationCard(),
+        const SizedBox(height: 16),
+        SlotMenuConfigurationCard(
+          api: widget.api,
+          slot: _active,
+          reusableSlots: _slots,
+          onMenuPublished: (slotId, menu) {
+            setState(() {
+              _slots = _slots
+                  .map(
+                    (slot) =>
+                        slot.id == slotId ? slot.copyWith(menu: menu) : slot,
+                  )
+                  .toList();
+            });
+          },
+        ),
       ],
     );
   }

@@ -224,6 +224,9 @@ class MountainHutApi {
     );
   }
 
+  Future<Map<String, dynamic>> publishSlotMenu(int slotId, String menu) =>
+      _object('PUT', ApiEndpoints.slotMenu(slotId), body: {'menu': menu});
+
   Future<int> repeatWeek({
     required String sourceWeek,
     required String targetWeek,

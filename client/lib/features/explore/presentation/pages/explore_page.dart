@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/auth_context.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../../../booking/domain/entities/booking_allocation.dart';
+import '../../../booking/presentation/widgets/meal_service_slot_card.dart';
 import '../widgets/hut_welcome_banner.dart';
 
 class ExplorePage extends StatefulWidget {
@@ -548,10 +549,11 @@ class _AvailabilityCard extends StatelessWidget {
               const Text('No meal service slots are available for this date.')
             else
               for (var index = 0; index < slots.length; index++)
-                _SlotTile(
+                MealServiceSlotCard(
                   label: _slotLabel(slots[index]),
                   leadingIcon: _slotIcon(slots[index]),
                   selected: selectedSlot == index,
+                  menuHtml: slots[index]['menu'] as String?,
                   onTap: () => onSlotChanged(index),
                 ),
             const SizedBox(height: AppConstants.spacingSm),
@@ -650,61 +652,6 @@ class _AvailabilityCard extends StatelessWidget {
     return start.startsWith('12:') || start.startsWith('13:')
         ? Icons.lunch_dining
         : Icons.room_service;
-  }
-}
-
-class _SlotTile extends StatelessWidget {
-  const _SlotTile({
-    required this.label,
-    required this.leadingIcon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData leadingIcon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foregroundColor = selected
-        ? AppColors.primary
-        : AppColors.textSecondary;
-
-    return Column(
-      children: [
-        Card(
-          elevation: selected ? 2 : 0,
-          shadowColor: selected
-              ? Colors.black.withValues(alpha: 0.08)
-              : Colors.transparent,
-          margin: EdgeInsets.zero,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          color: selected ? AppColors.surface : AppColors.lightSlot,
-          child: ListTile(
-            dense: true,
-            onTap: onTap,
-            leading: Icon(leadingIcon, size: 18, color: foregroundColor),
-            title: Text(
-              label,
-              style: TextStyle(
-                color: foregroundColor,
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            trailing: Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: foregroundColor,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppConstants.spacingSm),
-      ],
-    );
   }
 }
 
