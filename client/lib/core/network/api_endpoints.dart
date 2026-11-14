@@ -25,6 +25,7 @@ class ApiEndpoints {
 
   static String timeslot(int id) => '$timeslots/$id';
   static String slotTables(int id) => '$timeslots/$id/tables';
+  static String slotMenu(int id) => '$timeslots/$id/menu';
   static String booking(int id) => '$bookings/$id';
   static String confirmation(int id) => '$bookings/$id/confirmation';
   static const String staffHikers = '/staff/hikers';
