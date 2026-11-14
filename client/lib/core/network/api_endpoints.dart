@@ -21,6 +21,7 @@ class ApiEndpoints {
   static const String timeslots = '/timeslots';
   static const String bookings = '/bookings';
   static const String availability = '/availability';
+  static const String repeatWeek = '$timeslots/repeat-week';
 
   static String timeslot(int id) => '$timeslots/$id';
   static String slotTables(int id) => '$timeslots/$id/tables';

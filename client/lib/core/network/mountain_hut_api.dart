@@ -224,6 +224,26 @@ class MountainHutApi {
     );
   }
 
+  Future<int> repeatWeek({
+    required String sourceWeek,
+    required String targetWeek,
+  }) async {
+    final response = await _object(
+      'POST',
+      ApiEndpoints.repeatWeek,
+      body: {'source_week': sourceWeek, 'target_week': targetWeek},
+    );
+    final slotIds = response['slotIds'];
+    if (slotIds is! List || slotIds.any((id) => id is! num)) {
+      throw const ApiException(
+        200,
+        'INVALID_RESPONSE',
+        'Expected replicated slot IDs.',
+      );
+    }
+    return slotIds.length;
+  }
+
   Future<Map<String, dynamic>> checkAvailability({
     required String date,
     required String time,
