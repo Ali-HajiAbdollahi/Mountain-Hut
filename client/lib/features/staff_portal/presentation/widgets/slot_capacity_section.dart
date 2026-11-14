@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/iso_week.dart';
 import '../../domain/entities/service_slot.dart';
 import 'slot_form_dialog.dart';
 import 'table_allocation_modal.dart';
@@ -18,10 +19,13 @@ class SlotCapacitySection extends StatefulWidget {
 
 class _SlotCapacitySectionState extends State<SlotCapacitySection> {
   late DateTime _date;
+  late DateTime _sourceWeek;
+  late DateTime _targetWeek;
   List<ServiceSlot> _slots = const [];
   int? _activeId;
   bool _loading = true;
   bool _busy = false;
+  bool _replicating = false;
   String? _error;
 
   @override
@@ -29,6 +33,8 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
     super.initState();
     final now = DateTime.now();
     _date = DateTime(now.year, now.month, now.day);
+    _sourceWeek = isoWeekStart(_date);
+    _targetWeek = _sourceWeek.add(const Duration(days: 7));
     _load();
   }
 
@@ -113,6 +119,89 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
     await _load();
   }
 
+  Future<void> _pickWeek({required bool source}) async {
+    final selectedWeek = source ? _sourceWeek : _targetWeek;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedWeek,
+      firstDate: DateTime(1),
+      lastDate: DateTime(9999),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (source) {
+        _sourceWeek = isoWeekStart(picked);
+      } else {
+        _targetWeek = isoWeekStart(picked);
+      }
+    });
+  }
+
+  void _shiftWeek({required bool source, required int weeks}) {
+    setState(() {
+      if (source) {
+        _sourceWeek = _sourceWeek.add(Duration(days: 7 * weeks));
+      } else {
+        _targetWeek = _targetWeek.add(Duration(days: 7 * weeks));
+      }
+    });
+  }
+
+  bool get _sameWeek => _sourceWeek == _targetWeek;
+
+  String _weekLabel(DateTime monday) {
+    final endExclusive = isoWeekEndExclusive(monday);
+    final localizations = MaterialLocalizations.of(context);
+    final startLabel = localizations.formatShortMonthDay(monday);
+    final endLabel = localizations.formatShortMonthDay(endExclusive);
+    return '$startLabel – $endLabel';
+  }
+
+  Future<void> _replicateWeek() async {
+    if (_busy || _sameWeek) return;
+    setState(() {
+      _busy = true;
+      _replicating = true;
+    });
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final copiedSlots = await widget.api.repeatWeek(
+        sourceWeek: formatYmd(_sourceWeek),
+        targetWeek: formatYmd(_targetWeek),
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Replicated $copiedSlots service '
+            'slot${copiedSlots == 1 ? '' : 's'} to the target week.',
+          ),
+        ),
+      );
+      final targetEnd = isoWeekEndExclusive(_targetWeek);
+      if (!_date.isBefore(_targetWeek) && _date.isBefore(targetEnd)) {
+        await _load();
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } on Exception catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not replicate schedule: $error')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _replicating = false;
+        });
+      }
+    }
+  }
+
   Future<void> _addSlot() async {
     final result = await showSlotFormDialog(
       context,
@@ -138,7 +227,8 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
 
     final result = await showTableAllocationDialog(
       context,
-      title: 'Configure Slot Tables & Capacity – '
+      title:
+          'Configure Slot Tables & Capacity – '
           '${slot.startLabel}–${slot.endLabel}',
       initialTables: slot.tables,
       readOnly: slot.hasLayout,
@@ -154,63 +244,292 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
     }, success: 'Table allocations saved.');
   }
 
-  /// Latest slot of the same day, starting before [slot], that has a layout.
-  int? _precedingWithLayout(ServiceSlot slot) {
-    final candidates = _slots
-        .where(
-          (s) =>
-              s.hasLayout &&
-              s.id != slot.id &&
-              s.startTime.compareTo(slot.startTime) < 0,
-        )
-        .toList();
-    return candidates.isEmpty ? null : candidates.last.id;
-  }
-
-  Future<void> _reuseLayout() async {
-    final slot = _active;
-    if (slot == null) return;
-
-    await _run(() async {
-      var sourceId = _precedingWithLayout(slot);
-
-      if (sourceId == null) {
-        final yesterday = DateTime(_date.year, _date.month, _date.day - 1);
-        final raw = await widget.api.listSlots(formatYmd(yesterday));
-        final withLayout = raw
-            .map(ServiceSlot.fromJson)
-            .where((s) => s.hasLayout)
-            .toList()
-          ..sort((a, b) => a.startTime.compareTo(b.startTime));
-        if (withLayout.isNotEmpty) sourceId = withLayout.last.id;
-      }
-
-      if (sourceId == null) {
-        throw const ApiException(
-          0,
-          'NO_SOURCE',
-          'No previous layout found to reuse.',
-        );
-      }
-
-      await widget.api.defineTables(slot.id, copyFromTsId: sourceId);
-      await _load(selectId: slot.id);
-    }, success: 'Layout copied.');
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
+        _replicationCard(),
+        const SizedBox(height: AppConstants.spacingMd),
         _dayCard(),
         const SizedBox(height: 16),
         _slotsCard(),
         const SizedBox(height: 16),
         _allocationCard(),
-        const SizedBox(height: 16),
-        _reuseBanner(),
       ],
+    );
+  }
+
+  Widget _replicationCard() {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.lightBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A161616),
+            blurRadius: AppConstants.spacingSm,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppConstants.spacingSm),
+                color: AppColors.infoBadge,
+                child: const Icon(Icons.grid_view, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppConstants.spacingSm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'WEEKLY SCHEDULE REPLICATION',
+                      style: textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.spacingXs),
+                    Text(
+                      'Copy all service slots and table layouts from one week to another.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          Container(
+            padding: const EdgeInsets.all(AppConstants.spacingSm),
+            decoration: BoxDecoration(
+              color: AppColors.lightControl,
+              border: Border.all(color: AppColors.lightBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.swap_horiz,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: AppConstants.spacingXs),
+                    Text(
+                      'REPLICATION ROUTE',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingSm),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final source = _weekSelector(
+                      label: 'SOURCE WEEK',
+                      week: _sourceWeek,
+                      source: true,
+                    );
+                    final target = _weekSelector(
+                      label: 'TARGET WEEK',
+                      week: _targetWeek,
+                      source: false,
+                    );
+                    if (constraints.maxWidth <
+                        AppConstants.weekRouteCompactBreakpoint) {
+                      return Column(
+                        children: [
+                          source,
+                          const Padding(
+                            padding: EdgeInsets.all(AppConstants.spacingXs),
+                            child: Icon(
+                              Icons.arrow_downward,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          target,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: source),
+                        const Padding(
+                          padding: EdgeInsets.all(AppConstants.spacingXs),
+                          child: Icon(
+                            Icons.arrow_forward,
+                            color: AppColors.primary,
+                            size: AppConstants.spacingLg,
+                          ),
+                        ),
+                        Expanded(child: target),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          if (_sameWeek) ...[
+            const SizedBox(height: AppConstants.spacingSm),
+            Text(
+              'Choose two different weeks.',
+              style: textTheme.bodySmall?.copyWith(color: AppColors.danger),
+            ),
+          ],
+          const SizedBox(height: AppConstants.spacingMd),
+          FilledButton.icon(
+            onPressed: (_busy || _sameWeek) ? null : _replicateWeek,
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+              ),
+            ),
+            icon: _replicating
+                ? const SizedBox(
+                    width: AppConstants.spacingMd,
+                    height: AppConstants.spacingMd,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            label: Text(
+              _replicating
+                  ? 'REPLICATING SCHEDULE...'
+                  : 'REPLICATE SCHEDULE TO TARGET',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _weekSelector({
+    required String label,
+    required DateTime week,
+    required bool source,
+  }) {
+    final isTarget = !source;
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingSm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(
+          color: isTarget ? AppColors.primary : AppColors.lightBorder,
+          width: isTarget ? 2 : 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A161616),
+            blurRadius: AppConstants.spacingXs,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.lightBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _weekControl(
+                  icon: Icons.chevron_left,
+                  tooltip: 'Previous week',
+                  onPressed: _busy
+                      ? null
+                      : () => _shiftWeek(source: source, weeks: -1),
+                ),
+                Container(
+                  width: 1,
+                  height: AppConstants.spacingXl,
+                  color: AppColors.lightBorder,
+                ),
+                _weekControl(
+                  icon: Icons.calendar_month,
+                  tooltip: 'Choose $label',
+                  onPressed: _busy ? null : () => _pickWeek(source: source),
+                  color: AppColors.primary,
+                ),
+                Container(
+                  width: 1,
+                  height: AppConstants.spacingXl,
+                  color: AppColors.lightBorder,
+                ),
+                _weekControl(
+                  icon: Icons.chevron_right,
+                  tooltip: 'Next week',
+                  onPressed: _busy
+                      ? null
+                      : () => _shiftWeek(source: source, weeks: 1),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          Text(
+            _weekLabel(week),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: AppConstants.spacingXs),
+          Text(
+            isTarget
+                ? 'Target must not already contain slots'
+                : 'Configured schedule',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.secondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _weekControl({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+    Color? color,
+  }) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(
+        width: AppConstants.spacingXl,
+        height: AppConstants.spacingXl,
+      ),
+      padding: EdgeInsets.zero,
+      color: color ?? AppColors.text,
+      icon: Icon(icon, size: AppConstants.spacingMd),
     );
   }
 
@@ -312,9 +631,7 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
   Widget _slotTile(ServiceSlot slot) {
     final active = slot.id == _activeId;
     final textTheme = Theme.of(context).textTheme;
-    final detail = slot.hasLayout
-        ? '${slot.capacity} seats'
-        : 'no layout yet';
+    final detail = slot.hasLayout ? '${slot.capacity} seats' : 'no layout yet';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -456,55 +773,6 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
             onPressed: (slot == null || _busy) ? null : _configureTables,
             icon: const Icon(Icons.tune, size: 18),
             label: const Text('Configure Slot Tables & Capacity'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _reuseBanner() {
-    final slot = _active;
-    final textTheme = Theme.of(context).textTheme;
-    final canReuse = slot != null && !slot.hasLayout && !_busy;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      color: AppColors.infoBadge,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.history, color: AppColors.primary, size: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TIME-SAVER PRESET',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Reuse the dining layout of the preceding slot or of '
-                      'yesterday, without manual re-entry. Available for '
-                      'slots without a layout.',
-                      style: textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          ElevatedButton.icon(
-            onPressed: canReuse ? _reuseLayout : null,
-            icon: const Icon(Icons.sync, size: 16),
-            label: const Text('Reuse Layout'),
           ),
         ],
       ),
