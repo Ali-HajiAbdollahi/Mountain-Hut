@@ -1,4 +1,5 @@
 // Test doubles shared by the frontend tests: no backend and no network.
+import 'package:client/core/constants/hut_information.dart';
 import 'package:client/core/network/mountain_hut_api.dart';
 import 'package:client/features/auth/domain/repositories/auth_repository.dart';
 import 'package:client/features/booking/domain/entities/booking_allocation.dart';
@@ -29,6 +30,7 @@ class FakeApi extends Fake implements MountainHutApi {
   List<Map<String, dynamic>> bookings = [];
   ApiException? bookingsError;
   ApiException? updateError;
+  ApiException? cancelError;
 
   /// Slots per date ('YYYY-MM-DD'); when a date is missing, [slots] is used.
   Map<String, List<Map<String, dynamic>>> slotsByDate = {};
@@ -147,6 +149,14 @@ class FakeApi extends Fake implements MountainHutApi {
     if (updateError != null) throw updateError!;
     return {'booking': {}};
   }
+
+  /// Like the backend: on success the booking disappears from [bookings].
+  @override
+  Future<void> cancelBooking(int id) async {
+    calls.add(Call('cancelBooking', {'id': id}));
+    if (cancelError != null) throw cancelError!;
+    bookings.removeWhere((b) => b['bID'] == id);
+  }
 }
 
 /// Booking repository that records what the page sends.
@@ -230,6 +240,8 @@ Future<void> pumpPage(WidgetTester tester, Widget page) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  await tester.runAsync(() => HutInformation.asset);
   await tester.pumpWidget(MaterialApp(home: page));
+  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   await tester.pumpAndSettle();
 }
