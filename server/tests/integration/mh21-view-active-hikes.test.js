@@ -141,4 +141,48 @@ describe('GET /api/hikes/active', () => {
     expect(anonymous.status).toBe(401);
     expect(forbidden.status).toBe(403);
   });
+
+  it('orders the hikes by expected return, the earliest first', async () => {
+    const late = addHike({ uID: marco.uID, destination: 'Far Peak', route: 'North face',
+      departure_time: '2026-12-01 06:00', expected_return: '2026-12-01 18:00' });
+    const early = addHike({ uID: sara.uID, destination: 'Near Lake', route: 'Forest path',
+      departure_time: '2026-12-01 07:00', expected_return: '2026-12-01 11:00' });
+    const nextDay = addHike({ uID: marco.uID, destination: 'Glacier', route: 'Two-day trek',
+      departure_time: '2026-11-30 08:00', expected_return: '2026-12-02 10:00' });
+
+    const res = await employee.get('/api/hikes/active');
+    expect(res.body.map(h => h.hID)).toEqual([early, late, nextDay]);
+  });
+
+  it('excludes future departures and returned hikes, also when they are overdue', async () => {
+    addHike({ uID: marco.uID, destination: 'Tomorrow Peak', route: 'Ridge',
+      departure_time: '2026-12-02 08:00', expected_return: '2026-12-02 16:00' });
+    addHike({ uID: sara.uID, destination: 'Back Home', route: 'Valley',
+      departure_time: '2026-11-30 08:00', expected_return: '2026-11-30 16:00', returned_at: '2026-11-30 15:00' });
+    const overdue = addHike({ uID: sara.uID, destination: 'Lost Pass', route: 'Scree',
+      departure_time: '2026-11-30 08:00', expected_return: '2026-11-30 16:00' });
+
+    const res = await employee.get('/api/hikes/active');
+    expect(res.body.map(h => h.hID)).toEqual([overdue]);
+  });
+
+  it('shows each hike separately, also when the same hiker has two active hikes', async () => {
+    addHike({ uID: marco.uID, destination: 'Peak A', route: 'Route A',
+      departure_time: '2026-12-01 06:00', expected_return: '2026-12-01 12:00' });
+    addHike({ uID: marco.uID, destination: 'Peak B', route: 'Route B',
+      departure_time: '2026-12-01 07:00', expected_return: '2026-12-01 13:00' });
+
+    const res = await employee.get('/api/hikes/active');
+    expect(res.body.map(h => [h.hiker_name, h.destination]))
+      .toEqual([['Marco Bianchi', 'Peak A'], ['Marco Bianchi', 'Peak B']]);
+  });
+
+  it('returns only the summary fields, without contact or account data', async () => {
+    addHike({ uID: marco.uID, destination: 'Peak', route: 'Route',
+      departure_time: '2026-12-01 06:00', expected_return: '2026-12-01 12:00' });
+
+    const [hike] = (await employee.get('/api/hikes/active')).body;
+    expect(Object.keys(hike).sort())
+      .toEqual(['destination', 'expected_return', 'hID', 'hiker_name', 'route', 'waypoints']);
+  });
 });
