@@ -54,6 +54,54 @@ void main() {
     ]);
   });
 
+  testWidgets('each requirement says how many people of the party it concerns (n_people)', (tester) async {
+    await open(tester);
+    await addRequirement(tester, 'vegan, peanut allergy', allergy: true);
+    await addRequirement(tester, 'shellfish allergy', allergy: true);
+    await addRequirement(tester, 'vegetarians');
+    expect(find.text('Not specified'), findsNWidgets(3));
+
+    Future<void> more(int card, int times) async {
+      for (var i = 0; i < times; i++) {
+        await tester.tap(find.byTooltip('More people affected').at(card));
+        await tester.pump();
+      }
+    }
+
+    await more(0, 1);
+    await more(1, 1);
+    await more(2, 2);
+    expect(find.text('2 of ${allocation.partySize}'), findsOneWidget);
+    await confirm(tester);
+
+    expect(repository.requests.single['requirements'], [
+      {'n_people': 1, 'description': 'vegan, peanut allergy', 'allergy': true},
+      {'n_people': 1, 'description': 'shellfish allergy', 'allergy': true},
+      {'n_people': 2, 'description': 'vegetarians', 'allergy': false},
+    ]);
+  });
+
+  testWidgets('the number of people cannot exceed the party size, and can go back to "not specified"', (tester) async {
+    await open(tester);
+    await addRequirement(tester, 'gluten free');
+    for (var i = 0; i < allocation.partySize + 3; i++) {
+      await tester.tap(find.byTooltip('More people affected'), warnIfMissed: false);
+      await tester.pump();
+    }
+    expect(find.text('${allocation.partySize} of ${allocation.partySize}'), findsOneWidget);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.exposure_plus_1)).onPressed, isNull);
+
+    for (var i = 0; i < allocation.partySize; i++) {
+      await tester.tap(find.byTooltip('Fewer people affected'));
+      await tester.pump();
+    }
+    expect(find.text('Not specified'), findsOneWidget);
+    await confirm(tester);
+    expect(repository.requests.single['requirements'], [
+      {'description': 'gluten free', 'allergy': false},
+    ]);
+  });
+
   testWidgets('checking the allergy box flags the requirement for the kitchen', (tester) async {
     await open(tester);
     await addRequirement(tester, 'nut allergy');

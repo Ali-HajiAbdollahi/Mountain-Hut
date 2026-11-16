@@ -29,6 +29,7 @@ class FakeApi extends Fake implements MountainHutApi {
   List<Map<String, dynamic>> bookings = [];
   ApiException? bookingsError;
   ApiException? updateError;
+  Map<String, dynamic> updateNotification = {'status': 'accepted'};
 
   /// Slots per date ('YYYY-MM-DD'); when a date is missing, [slots] is used.
   Map<String, List<Map<String, dynamic>>> slotsByDate = {};
@@ -145,7 +146,7 @@ class FakeApi extends Fake implements MountainHutApi {
     calls.add(Call('updateBooking',
         {'id': id, 'slotId': slotId, 'people': people, 'requirements': requirements}));
     if (updateError != null) throw updateError!;
-    return {'booking': {}};
+    return {'booking': {}, 'notification': updateNotification};
   }
 }
 

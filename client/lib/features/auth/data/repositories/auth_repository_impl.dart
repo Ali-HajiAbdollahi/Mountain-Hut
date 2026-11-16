@@ -28,4 +28,27 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
     );
   }
+
+  @override
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _api.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
+  @override
+  Future<void> requestPasswordReset(String email) =>
+      _api.requestPasswordReset(email);
+
+  @override
+  Future<void> confirmPasswordReset({
+    required String token,
+    required String newPassword,
+  }) {
+    return _api.confirmPasswordReset(token: token, newPassword: newPassword);
+  }
 }

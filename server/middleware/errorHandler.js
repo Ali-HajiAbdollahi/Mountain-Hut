@@ -1,5 +1,5 @@
 import { ValidationError, ConflictError, AuthenticationError,
-  ForbiddenError, NotFoundError } from '../errors.js';
+  ForbiddenError, NotFoundError, PasswordChangeRequiredError } from '../errors.js';
 
 export function errorHandler(err,req,res,next) {
   if (res.headersSent) return next(err);
@@ -8,6 +8,8 @@ export function errorHandler(err,req,res,next) {
     [status,code,message] = [400,'VALIDATION_ERROR',err instanceof ValidationError ? err.message : 'Invalid JSON'];
   else if (err instanceof AuthenticationError)
     [status,code,message] = [401,'UNAUTHENTICATED',err.message];
+  else if (err instanceof PasswordChangeRequiredError)
+    [status,code,message] = [403,'PASSWORD_CHANGE_REQUIRED',err.message];
   else if (err instanceof ForbiddenError)
     [status,code,message] = [403,'FORBIDDEN',err.message];
   else if (err instanceof NotFoundError)

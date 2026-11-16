@@ -22,9 +22,10 @@ const slotDao = createSlotDao(db);
 
 const service = createBookingService(bookingDao, slotDao);
 const changeService = createBookingChangeService(bookingDao, slotDao);
+const mail = createMailService();
 const bookingRouter = createBookingRouter(
   service,
-  createMailService(),
+  mail,
   changeService,
 );
 const staffUsers = createUserDao(db);
@@ -40,7 +41,7 @@ const hikeDao = createHikeDao(db);
 const hikeService = createHikeService(hikeDao);
 const hikeRouter = createHikeRouter(hikeService);
 const port = Number(process.env.PORT || 3001);
-const server = createApp(db, { bookingRouter, staffBookingRouter, hikeRouter }).listen(port, () => {
+const server = createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, mail }).listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
 

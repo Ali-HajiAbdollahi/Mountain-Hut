@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/service_slot.dart';
 
@@ -16,14 +17,24 @@ class SlotFormResult {
   final int? copyFromTsId;
 }
 
-Future<SlotFormResult?> showSlotFormDialog(
+typedef CreateSlotCallback =
+    Future<Map<String, dynamic>> Function(SlotFormResult form);
+
+/// Returns the created slot, or null when the dialog is cancelled. The dialog stays open and
+/// shows the server error when [create] fails.
+Future<Map<String, dynamic>?> showSlotFormDialog(
   BuildContext context, {
   required DateTime date,
   required List<ServiceSlot> copySources,
+  required CreateSlotCallback create,
 }) {
-  return showDialog<SlotFormResult>(
+  return showDialog<Map<String, dynamic>>(
     context: context,
-    builder: (_) => SlotFormDialog(date: date, copySources: copySources),
+    builder: (_) => SlotFormDialog(
+      date: date,
+      copySources: copySources,
+      create: create,
+    ),
   );
 }
 
@@ -31,10 +42,12 @@ class SlotFormDialog extends StatefulWidget {
   const SlotFormDialog({
     required this.date,
     required this.copySources,
+    required this.create,
     super.key,
   });
 
   final DateTime date;
+  final CreateSlotCallback create;
 
   /// Slots of the same day that already have a table layout.
   final List<ServiceSlot> copySources;
@@ -48,6 +61,7 @@ class _SlotFormDialogState extends State<SlotFormDialog> {
   TimeOfDay? _end;
   int? _copyFrom;
   String? _error;
+  bool _submitting = false;
 
   String _fmt(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:'
@@ -75,7 +89,8 @@ class _SlotFormDialogState extends State<SlotFormDialog> {
     });
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_submitting) return;
     final start = _start;
     final end = _end;
     if (start == null || end == null) {
@@ -87,6 +102,13 @@ class _SlotFormDialogState extends State<SlotFormDialog> {
     final startDt = DateTime(d.year, d.month, d.day, start.hour, start.minute);
     final endDt = DateTime(d.year, d.month, d.day, end.hour, end.minute);
 
+    if (endDt.isBefore(startDt)) {
+      setState(
+        () => _error =
+            'A service slot must end on the same day (cannot cross midnight).',
+      );
+      return;
+    }
     if (!endDt.isAfter(startDt)) {
       setState(() => _error = 'End time must be after start time.');
       return;
@@ -97,13 +119,33 @@ class _SlotFormDialogState extends State<SlotFormDialog> {
     }
 
     final day = formatYmd(d);
-    Navigator.of(context).pop(
-      SlotFormResult(
-        startTime: '$day ${_fmt(start)}',
-        endTime: '$day ${_fmt(end)}',
-        copyFromTsId: _copyFrom,
-      ),
-    );
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final created = await widget.create(
+        SlotFormResult(
+          startTime: '$day ${_fmt(start)}',
+          endTime: '$day ${_fmt(end)}',
+          copyFromTsId: _copyFrom,
+        ),
+      );
+      if (mounted) Navigator.of(context).pop(created);
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(
+          () => _error = e.status == 409
+              ? 'This slot overlaps with an existing one. '
+                    'Please choose a different time.'
+              : e.message,
+        );
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not reach the server.');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   Widget _timeField(String label, TimeOfDay? value, {required bool isStart}) {
@@ -192,7 +234,7 @@ class _SlotFormDialogState extends State<SlotFormDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton.icon(
-          onPressed: _submit,
+          onPressed: _submitting ? null : _submit,
           style: ElevatedButton.styleFrom(minimumSize: const Size(0, 40)),
           icon: const Icon(Icons.check, size: 16),
           label: const Text('Create slot'),

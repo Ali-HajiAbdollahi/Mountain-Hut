@@ -146,7 +146,11 @@ export function createStaffBookingService(users, bookings, slots, auth) {
           }
         } else if (hiker.mode === 'register') {
           generatedPassword = randomBytes(18).toString('base64url');
-          profile = auth.register({ ...hiker.profile, password: generatedPassword });
+          profile = auth.register({
+            ...hiker.profile,
+            password: generatedPassword,
+            mustChangePassword: true,
+          });
         } else {
           profile = {
             uID: null,

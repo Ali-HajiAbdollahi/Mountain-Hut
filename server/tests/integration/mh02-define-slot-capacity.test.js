@@ -46,6 +46,24 @@ describe('POST /api/timeslots', () => {
     expect((await employee.post('/api/timeslots').send(body)).status).toBe(409);
   });
 
+  it('rejects a partially overlapping slot with 409 and accepts a contiguous one', async () => {
+    await employee.post('/api/timeslots')
+      .send({ start_time: '2026-12-01 12:00', end_time: '2026-12-01 14:00', tables: layout });
+    const overlapping = await employee.post('/api/timeslots')
+      .send({ start_time: '2026-12-01 13:00', end_time: '2026-12-01 15:00', tables: layout });
+    const contiguous = await employee.post('/api/timeslots')
+      .send({ start_time: '2026-12-01 14:00', end_time: '2026-12-01 16:00', tables: layout });
+    expect(overlapping.status).toBe(409);
+    expect(contiguous.status).toBe(201);
+    expect(ctx.db.prepare('SELECT COUNT(*) AS n FROM timeslots').get().n).toBe(2);
+  });
+
+  it('rejects a slot that ends on another day', async () => {
+    const res = await employee.post('/api/timeslots')
+      .send({ start_time: '2026-12-01 23:00', end_time: '2026-12-02 01:00', tables: layout });
+    expect(res.status).toBe(400);
+  });
+
   it('rejects slots in the past or with end before start', async () => {
     const past = await employee.post('/api/timeslots')
       .send({ start_time: '2026-11-30 12:00', end_time: '2026-11-30 13:00', tables: layout });
