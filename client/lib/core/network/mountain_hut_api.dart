@@ -319,5 +319,29 @@ class MountainHutApi {
         'requirements': requirements,
       });
 
+    Future<Map<String, dynamic>> registerHike(
+      Map<String, dynamic> hike,
+    ) async {
+      final response = await _object(
+        'POST',
+        ApiEndpoints.hikes,
+        body: hike,
+      );
+
+      if (response['hike'] is! Map<String, dynamic>) {
+        throw const ApiException(
+          200,
+          'INVALID_RESPONSE',
+          'Expected registered hike object.',
+        );
+      }
+
+      return response['hike'] as Map<String, dynamic>;
+    }
+
+    Future<List<Map<String, dynamic>>> activeHikes() =>
+        _list(ApiEndpoints.activeHikes);
+
+
   void close() => _client.close();
 }
