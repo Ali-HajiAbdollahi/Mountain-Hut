@@ -1,3 +1,4 @@
+import { ConflictError } from '../errors.js';
 import { transaction } from './transaction.js';
 
 export function createSlotDao(db) {
@@ -16,8 +17,8 @@ export function createSlotDao(db) {
     find: id => slot.get(id),
     menu: id => menuForSlot.get(id)?.menu ?? null,
     tables: id => tables.all(id),
-    sameInterval: (a,b) => db.prepare(
-      'SELECT tsID FROM timeslots WHERE start_time=? AND end_time=?').get(a,b),
+    overlaps: (a,b) => db.prepare(
+      'SELECT tsID FROM timeslots WHERE start_time < ? AND end_time > ? LIMIT 1').get(b,a),
     list: date => db.prepare(`
       SELECT s.tsID, sm.menu
       FROM timeslots AS s
@@ -55,6 +56,7 @@ export function createSlotDao(db) {
     // The service owns the transaction covering source reads and replacement.
     copyWeek(copies) {
       return copies.map(({ sourceTsID, start_time, end_time }) => {
+        if (dao.overlaps(start_time, end_time)) throw new ConflictError('Slot overlaps an existing slot');
         const id = dao.insert(start_time, end_time);
         dao.insertTables(id, dao.tables(sourceTsID).map(({ table_no, seats }) => ({ table_no, seats })));
         return id;

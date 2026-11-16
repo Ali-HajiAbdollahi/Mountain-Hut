@@ -63,8 +63,8 @@ export function createSlotService(dao) {
       onlyKeys(body,['start_time','end_time','tables','copy_from_tsID']);
       validateInterval(body.start_time,body.end_time);
       return dao.atomic(()=>{
-        if (dao.sameInterval(body.start_time,body.end_time))
-          throw new ConflictError('Slot already exists');
+        if (dao.overlaps(body.start_time,body.end_time))
+          throw new ConflictError('Slot overlaps an existing slot');
         const rows = layout(body);
         const id = dao.insert(body.start_time,body.end_time);
         dao.insertTables(id,rows);
