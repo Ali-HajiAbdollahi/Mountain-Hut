@@ -7,6 +7,7 @@ import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/auth_context.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
+import '../../../auth/presentation/pages/change_password_screen.dart';
 import '../../../booking/domain/entities/booking_allocation.dart';
 import '../../../booking/presentation/widgets/meal_service_slot_card.dart';
 import '../widgets/hut_welcome_banner.dart';
@@ -49,6 +50,16 @@ class _ExplorePageState extends State<ExplorePage> {
   Future<void> _restoreSession() async {
     try {
       final user = await widget.api.currentUser();
+      if (!mounted) return;
+      // A session that still carries a temporary password must change it first.
+      if (user['must_change_password'] == true) {
+        await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (_) =>
+                ChangePasswordScreen(authRepository: widget.authRepository),
+          ),
+        );
+      }
       if (mounted && user['role'] == 'hiker') {
         setState(() => _isHikerSignedIn = true);
       }

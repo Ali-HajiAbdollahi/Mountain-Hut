@@ -67,6 +67,108 @@ describe('PATCH /api/bookings/:id', () => {
     expect(seatsOf(ctx, bID)).toEqual({ 1: 2 });
   });
 
+  describe('party size changes', () => {
+    // Tables 1 (4 seats) and 2 (6 seats). Table 1 is taken while Marco books, so he sits at
+    // table 2; once it is free, a fresh allocation would prefer table 1 (smaller).
+    let dinner, dinnerBID;
+    beforeEach(async () => {
+      dinner = addSlot(ctx, '2026-12-06 19:00', '2026-12-06 20:00', { 1: 4, 2: 6 });
+      const sara = await loginAs(ctx, 'sara@mail.it');
+      const blocker = await sara.post('/api/bookings').send({ tsID: dinner, n_people: 4 });
+      dinnerBID = (await marco.post('/api/bookings').send({ tsID: dinner, n_people: 2 })).body.booking.bID;
+      await sara.delete(`/api/bookings/${blocker.body.booking.bID}`);
+      expect(seatsOf(ctx, dinnerBID)).toEqual({ 2: 2 });
+    });
+
+    it('keeps the same tables when the bigger party still fits at them', async () => {
+      const res = await marco.patch(`/api/bookings/${dinnerBID}`).send({ n_people: 5 });
+      expect(res.status).toBe(200);
+      expect(seatsOf(ctx, dinnerBID)).toEqual({ 2: 5 });
+    });
+
+    it('reassigns the tables with the MH-01 rules when the party no longer fits at them', async () => {
+      const res = await marco.patch(`/api/bookings/${dinnerBID}`).send({ n_people: 7 });
+      expect(res.status).toBe(200);
+      expect(res.body.booking.n_people).toBe(7);
+      expect(seatsOf(ctx, dinnerBID)).toEqual({ 1: 4, 2: 3 });
+    });
+
+    it('refuses a party that fits nowhere and leaves the booking as it was', async () => {
+      const res = await marco.patch(`/api/bookings/${dinnerBID}`).send({ n_people: 11 });
+      expect(res.status).toBe(409);
+      expect(seatsOf(ctx, dinnerBID)).toEqual({ 2: 2 });
+      expect((await marco.get(`/api/bookings/${dinnerBID}`)).body.n_people).toBe(2);
+      const slot = await request(ctx.app).get(`/api/timeslots/${dinner}`);
+      expect(slot.body.free_seats).toBe(8);
+    });
+  });
+
+  describe('email notification', () => {
+    it('sends the updated booking to the hiker on every successful change', async () => {
+      const before = ctx.mail.sent.length;
+      const size = await marco.patch(`/api/bookings/${bID}`).send({ n_people: 3 });
+      const move = await marco.patch(`/api/bookings/${bID}`).send({ tsID: secondLunch });
+      const requirements = await marco.patch(`/api/bookings/${bID}`)
+        .send({ requirements: [{ description: 'nut allergy', allergy: true, n_people: 1 }] });
+
+      expect(size.body.notification).toMatchObject({ status: 'accepted' });
+      expect(move.body.notification).toMatchObject({ status: 'accepted' });
+      expect(requirements.body.notification).toMatchObject({ status: 'accepted' });
+      const sent = ctx.mail.sent.slice(before);
+      expect(sent).toHaveLength(3);
+      expect(sent.every(mail => mail.to === 'marco@mail.it')).toBe(true);
+      expect(sent[0].text).toContain('Party size: 3');
+      expect(sent[1].text).toContain('Date: 2026-12-05');
+      expect(sent[1].text).toContain('Time slot: 13:00 - 14:00');
+      expect(sent[2].text).toContain('ALLERGY — People: 1: nut allergy');
+    });
+
+    it('uses the update template, not the booking confirmation one', async () => {
+      const before = ctx.mail.sent.length;
+      await marco.patch(`/api/bookings/${bID}`).send({ n_people: 5 });
+      const [mail] = ctx.mail.sent.slice(before);
+
+      expect(mail.subject).toBe(`Mountain Hut: Your Booking has been Updated (Ref: MH-${bID})`);
+      expect(mail.text).toContain('Your reservation has been successfully updated. Here are your new booking details:');
+      expect(mail.text).toContain('Date: 2026-12-05');
+      expect(mail.text).toContain('Time slot: 12:00 - 13:00');
+      expect(mail.text).toContain('Party size: 5');
+      expect(mail.text).toContain('Assigned tables: Table 3 (5 seats)');
+      expect(mail.text).not.toContain('Booking confirmed');
+      expect(mail.html).toContain('successfully updated');
+    });
+
+    it('lists every assigned table in the email', async () => {
+      const before = ctx.mail.sent.length;
+      await marco.patch(`/api/bookings/${bID}`).send({ n_people: 8 }); // 2 + 6
+      expect(ctx.mail.sent[before].text).toContain('Assigned tables: Table 1 (2 seats), Table 3 (6 seats)');
+    });
+
+    it('sends nothing when the change is refused', async () => {
+      const before = ctx.mail.sent.length;
+      expect((await marco.patch(`/api/bookings/${bID}`).send({ n_people: 13 })).status).toBe(409);
+      expect((await marco.patch(`/api/bookings/${bID}`).send({})).status).toBe(400);
+      expect(ctx.mail.sent).toHaveLength(before);
+    });
+
+    it('keeps the change when the email is not delivered', async () => {
+      ctx.mail.send = async () => ({ status: 'failed' });
+      const res = await marco.patch(`/api/bookings/${bID}`).send({ n_people: 5 });
+      expect(res.status).toBe(200);
+      expect(res.body.notification).toEqual({ status: 'failed' });
+      expect(seatsOf(ctx, bID)).toEqual({ 3: 5 });
+    });
+
+    it('keeps the change when sending the email throws', async () => {
+      ctx.mail.send = async () => { throw new Error('smtp down'); };
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const res = await marco.patch(`/api/bookings/${bID}`).send({ n_people: 5 });
+      expect(res.status).toBe(200);
+      expect(res.body.notification).toEqual({ status: 'failed' });
+      expect((await marco.get(`/api/bookings/${bID}`)).body.n_people).toBe(5);
+    });
+  });
+
   // [BUG] MH-06 rule (confirmed by the team): changes are allowed until 48 hours before
   // the booked meal. The code counts 48 hours from created_at instead. Fails until fixed.
   it('[BUG] allows changes to an old booking while the meal is more than 48 hours away', async () => {

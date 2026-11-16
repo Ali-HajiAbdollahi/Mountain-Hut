@@ -229,22 +229,23 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
   }
 
   Future<void> _addSlot() async {
-    final result = await showSlotFormDialog(
+    final created = await showSlotFormDialog(
       context,
       date: _date,
       copySources: _slots.where((s) => s.hasLayout).toList(),
+      create: (form) => widget.api.createSlot(
+        startTime: form.startTime,
+        endTime: form.endTime,
+        tables: form.copyFromTsId == null ? const [] : null,
+        copyFromTsId: form.copyFromTsId,
+      ),
     );
-    if (result == null) return;
+    if (created == null || !mounted) return;
 
-    await _run(() async {
-      final created = await widget.api.createSlot(
-        startTime: result.startTime,
-        endTime: result.endTime,
-        tables: result.copyFromTsId == null ? const [] : null,
-        copyFromTsId: result.copyFromTsId,
-      );
-      await _load(selectId: (created['tsID'] as num).toInt());
-    }, success: 'Slot created.');
+    await _run(
+      () => _load(selectId: (created['tsID'] as num).toInt()),
+      success: 'Slot created.',
+    );
   }
 
   Future<void> _configureTables() async {

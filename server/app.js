@@ -8,12 +8,12 @@ import { createSlotService } from './services/slotService.js';
 import { createAvailabilityDao } from './dao/availabilityDao.js';
 import { createAvailabilityService } from './services/availabilityService.js';
 import { createAvailabilityRouter } from './routes/availabilityRoutes.js';
-import { loadUser } from './middleware/auth.js';
+import { loadUser, requirePasswordChanged } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { createAuthRouter } from './routes/authRoutes.js';
 import { createSlotRouter } from './routes/slotRoutes.js';
 
-export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter } = {}) {
+export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, mail } = {}) {
   const app = express();
   const origin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
@@ -40,9 +40,13 @@ export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter } 
 
   const userDao = createUserDao(db);
   app.use(loadUser(userDao));
+  app.use(requirePasswordChanged);
 
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
-  app.use('/api', createAuthRouter(createAuthService(userDao)));
+  app.use('/api', createAuthRouter(createAuthService(userDao), {
+    mail,
+    resetUrl: process.env.PASSWORD_RESET_URL || `${origin.replace(/\/$/, '')}/reset-password`,
+  }));
   app.use('/api/timeslots', createSlotRouter(createSlotService(createSlotDao(db))));
   app.use(
     '/api/availability',

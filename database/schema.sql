@@ -11,8 +11,20 @@ CREATE TABLE users (
   phone     TEXT,
   role      TEXT    NOT NULL CHECK (role IN ('hiker', 'employee')),
   password  TEXT,                      -- hash; NULL = profile created by an employee (MH-07), login not yet enabled
-  salt      TEXT
+  salt      TEXT,
+  -- 1 = account created by an employee with a random password: it must be changed at the next login (MH-07)
+  must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1))
 ) STRICT;
+
+-- Password recovery by email (MH-07). Only the SHA-256 of the token is stored; a token is valid
+-- until expires_at (24 hours after issue) and can be used once (used_at). Times are UTC ISO 8601.
+CREATE TABLE password_resets (
+  token_hash  TEXT    PRIMARY KEY,
+  uID         INTEGER NOT NULL REFERENCES users(uID) ON DELETE CASCADE,
+  expires_at  TEXT    NOT NULL,
+  used_at     TEXT
+) STRICT;
+CREATE INDEX idx_password_resets_user ON password_resets(uID);
  
 -- Slots with flexible start and duration (MH-02). Dates in ISO 8601: 'YYYY-MM-DD HH:MM'.
 CREATE TABLE timeslots (

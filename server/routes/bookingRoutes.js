@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireRole } from '../middleware/auth.js';
 import { pathId, onlyKeys } from '../domain/validation.js';
 import { bookingConfirmation } from '../mail/bookingConfirmation.js';
+import { bookingUpdated } from '../mail/bookingUpdated.js';
 
 export function createBookingRouter(service,mail,changeService) {
   const router=Router();
@@ -25,10 +26,14 @@ export function createBookingRouter(service,mail,changeService) {
       req.body,
       req.user,
     );
-    const notification = await mail.send(
-      req.user.email,
-      bookingConfirmation(booking),
-    );
+    // The change is already committed: a mail failure must not undo it.
+    let notification;
+    try {
+      notification = await mail.send(req.user.email, bookingUpdated(booking));
+    } catch (error) {
+      console.error('Booking change email failed', { code: error.code });
+      notification = { status: 'failed' };
+    }
 
     res.json({ booking, notification });
   });
