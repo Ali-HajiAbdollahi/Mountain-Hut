@@ -39,11 +39,17 @@ export function createSlotService(dao) {
   }
   return {
     repeatWeek(body) {
-      const { from, to, days } = readWeeks(body);
-      const slots = dao.listRange(from, to);
-      if (!slots.length) throw new ValidationError('Source week has no slots');
-      const copies = slots.map(slot => mapWeeklySlot(slot, days));
-      return { slotIds: dao.copyWeek(copies) };
+      const { from, to, targetFrom, targetTo, days } = readWeeks(body);
+      return dao.atomic(() => {
+        if (dao.targetHasBookings(targetFrom, targetTo)) {
+          throw new ConflictError('The target week has reservations: it cannot be replaced');
+        }
+        const slots = dao.listRange(from, to);
+        if (!slots.length) throw new ValidationError('Source week has no slots');
+        const copies = slots.map(slot => mapWeeklySlot(slot, days));
+        const replacedCount = dao.deleteWeek(targetFrom, targetTo);
+        return { slotIds: dao.copyWeek(copies), replacedCount };
+      });
     },
     details,
     detailsWithMenu,

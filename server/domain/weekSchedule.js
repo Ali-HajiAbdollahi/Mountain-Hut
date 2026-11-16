@@ -17,6 +17,8 @@ export function readWeeks(body) {
   return {
     from: source.toISODate() + ' 00:00',
     to: source.plus({ weeks: 1 }).toISODate() + ' 00:00',
+    targetFrom: target.toISODate() + ' 00:00',
+    targetTo: target.plus({ weeks: 1 }).toISODate() + ' 00:00',
     days: target.diff(source, 'days').days,
   };
 }

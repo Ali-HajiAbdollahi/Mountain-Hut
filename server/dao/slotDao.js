@@ -41,16 +41,25 @@ export function createSlotDao(db) {
       for (const t of rows) insertTable.run(id,t.table_no,t.seats);
     },
 
-    // MH-135: copies the table layout of each source slot into a new slot at the
-    // destination times supplied by the service: [{ sourceTsID, start_time, end_time }].
-    // Only table numbers and capacities are copied, so the new slots have no bookings.
-    // All-or-nothing: any failing insert (e.g. an existing slot) rolls back the whole
-    // copy and the error propagates. Returns the new tsIDs, in the order of the input.
-    copyWeek: copies => dao.atomic(() => copies.map(({ sourceTsID, start_time, end_time }) => {
-      const id = dao.insert(start_time, end_time);
-      dao.insertTables(id, dao.tables(sourceTsID).map(({ table_no, seats }) => ({ table_no, seats })));
-      return id;
-    })),
+    targetHasBookings(from, to) {
+      return Boolean(db.prepare(`
+        SELECT 1 FROM bookings b JOIN timeslots s ON s.tsID = b.tsID
+        WHERE s.start_time >= ? AND s.start_time < ? LIMIT 1
+      `).get(from, to));
+    },
+    deleteWeek(from, to) {
+      return Number(db.prepare(
+        'DELETE FROM timeslots WHERE start_time >= ? AND start_time < ?'
+      ).run(from, to).changes);
+    },
+    // The service owns the transaction covering source reads and replacement.
+    copyWeek(copies) {
+      return copies.map(({ sourceTsID, start_time, end_time }) => {
+        const id = dao.insert(start_time, end_time);
+        dao.insertTables(id, dao.tables(sourceTsID).map(({ table_no, seats }) => ({ table_no, seats })));
+        return id;
+      });
+    },
   };
   return dao;
 }
