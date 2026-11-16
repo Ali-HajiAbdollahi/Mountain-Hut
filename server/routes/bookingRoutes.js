@@ -19,14 +19,18 @@ export function createBookingRouter(service,mail,changeService) {
     res.status(204).end();
   });
 
-  router.patch('/:id', (req, res) => {
+  router.patch('/:id', async (req, res) => {
     const booking = changeService.update(
       pathId(req.params.id),
       req.body,
       req.user,
     );
+    const notification = await mail.send(
+      req.user.email,
+      bookingConfirmation(booking),
+    );
 
-    res.json({ booking });
+    res.json({ booking, notification });
   });
 
   router.post('/:id/confirmation',async (req,res)=>{

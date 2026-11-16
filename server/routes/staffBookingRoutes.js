@@ -13,12 +13,15 @@ export function createStaffBookingRouter(service) {
   });
 
   router.post('/bookings', (req, res) => {
-    const booking = service.create(req.body, req.user);
+    const { booking, generatedPassword } = service.create(req.body, req.user);
 
     res
       .location(`/api/bookings/${booking.bID}`)
       .status(201)
-      .json({ booking });
+      .json({
+        booking,
+        ...(generatedPassword ? { generatedPassword } : {}),
+      });
   });
 
   return router;
