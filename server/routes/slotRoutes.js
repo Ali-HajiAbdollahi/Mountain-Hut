@@ -8,6 +8,8 @@ export function createSlotRouter(service) {
     res.status(201).json(service.repeatWeek(req.body));
   });
   router.get('/',(req,res)=>res.json(service.list(req.query.date)));
+  router.get('/menus/recent', requireRole('employee'), (req, res) =>
+    res.json(service.recentMenus(req.query.before)));
   router.get('/:id',(req,res)=>res.json(service.detailsWithMenu(pathId(req.params.id))));
   router.post('/',requireRole('employee'),(req,res)=>{
     const slot=service.create(req.body);

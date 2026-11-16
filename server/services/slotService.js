@@ -2,7 +2,7 @@ import { slotMenuInput } from '../domain/slotMenuInput.js';
 import { readWeeks, mapWeeklySlot } from '../domain/weekSchedule.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
-import { dateOnly, validateInterval } from '../domain/time.js';
+import { dateOnly, slotTime, validateInterval } from '../domain/time.js';
 
 export function createSlotService(dao) {
   function details(id) {
@@ -70,6 +70,10 @@ export function createSlotService(dao) {
         dao.insertTables(id,rows);
         return details(id);
       });
+    },
+    recentMenus(before) {
+      slotTime(before);
+      return dao.recentMenus(before);
     },
     publishMenu(id, body) {
       const menu = dao.saveSlotMenu(id, slotMenuInput(body));

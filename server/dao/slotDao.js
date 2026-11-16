@@ -29,6 +29,20 @@ export function createSlotDao(db) {
     // Slots starting in [from, to), e.g. a week; times are 'YYYY-MM-DD HH:MM' strings.
     listRange: (from,to) => db.prepare(`SELECT tsID,start_time,end_time FROM timeslots
       WHERE start_time>=? AND start_time<? ORDER BY start_time,tsID`).all(from,to),
+    recentMenus(before) {
+      return db.prepare(`
+        WITH ranked AS (
+          SELECT s.tsID, s.start_time, s.end_time, m.menu,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY m.menu ORDER BY s.start_time DESC, s.tsID DESC
+                 ) AS rank_no
+          FROM slot_menus m JOIN timeslots s ON s.tsID = m.tsID
+          WHERE s.start_time < ?
+        )
+        SELECT tsID, start_time, end_time, menu FROM ranked WHERE rank_no = 1
+        ORDER BY start_time DESC, tsID DESC LIMIT 20
+      `).all(before);
+    },
     saveSlotMenu(tsID, menu) {
       return db.prepare(`
         INSERT INTO slot_menus (tsID, menu)
