@@ -166,9 +166,34 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
     });
     final messenger = ScaffoldMessenger.of(context);
     try {
+      final source = _sourceWeek;
+      final target = _targetWeek;
+      final days = await Future.wait(List.generate(7, (offset) {
+        final day = DateTime(target.year, target.month, target.day + offset);
+        return widget.api.listSlots(formatYmd(day));
+      }));
+      if (!mounted) return;
+      final count = days.fold<int>(0, (sum, slots) => sum + slots.length);
+      if (count > 0) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Replace weekly schedule?'),
+            content: Text('The week starting ${formatYmd(target)} has $count slots. '
+                'Replacing it removes those slots and their menus.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              FilledButton(onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Replace week')),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
       final copiedSlots = await widget.api.repeatWeek(
-        sourceWeek: formatYmd(_sourceWeek),
-        targetWeek: formatYmd(_targetWeek),
+        sourceWeek: formatYmd(source),
+        targetWeek: formatYmd(target),
       );
       if (!mounted) return;
       messenger.showSnackBar(
@@ -179,8 +204,8 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
           ),
         ),
       );
-      final targetEnd = isoWeekEndExclusive(_targetWeek);
-      if (!_date.isBefore(_targetWeek) && _date.isBefore(targetEnd)) {
+      final targetEnd = isoWeekEndExclusive(target);
+      if (!_date.isBefore(target) && _date.isBefore(targetEnd)) {
         await _load();
       }
     } on ApiException catch (error) {
