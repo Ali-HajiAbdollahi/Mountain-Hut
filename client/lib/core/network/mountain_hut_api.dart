@@ -227,6 +227,9 @@ class MountainHutApi {
   Future<Map<String, dynamic>> publishSlotMenu(int slotId, String menu) =>
       _object('PUT', ApiEndpoints.slotMenu(slotId), body: {'menu': menu});
 
+  Future<List<Map<String, dynamic>>> recentMenus(String before) =>
+      _list('${ApiEndpoints.timeslots}/menus/recent', query: {'before': before});
+
   Future<int> repeatWeek({
     required String sourceWeek,
     required String targetWeek,
