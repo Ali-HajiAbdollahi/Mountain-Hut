@@ -10,7 +10,7 @@ class SlotMenuConfigurationCard extends StatefulWidget {
   const SlotMenuConfigurationCard({
     required this.api,
     required this.slot,
-    required this.reusableSlots,
+    this.reusableSlots = const [],
     required this.onMenuPublished,
     super.key,
   });
@@ -33,10 +33,15 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
   final _editorFocus = FocusNode();
   int? _sourceSlotId;
   bool _publishing = false;
+  List<ServiceSlot> _previousMenus = const [];
+  bool _loadingHistory = false;
+  bool _historyFailed = false;
+  int _historyRequest = 0;
 
   @override
   void initState() {
     super.initState();
+    _loadHistory();
     _menuController
       ..loadHtml(widget.slot?.menu ?? '')
       ..addListener(_onEditorChanged);
@@ -47,6 +52,7 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
     super.didUpdateWidget(oldWidget);
     final slotChanged = oldWidget.slot?.id != widget.slot?.id;
     final menuChanged = oldWidget.slot?.menu != widget.slot?.menu;
+    if (slotChanged) _loadHistory();
     if (slotChanged || menuChanged) {
       final menu = widget.slot?.menu ?? '';
       if (slotChanged || menu != _menuController.toHtml()) {
@@ -69,17 +75,31 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
     if (mounted) setState(() {});
   }
 
-  List<ServiceSlot> get _previousMenus {
+  Future<void> _loadHistory() async {
+    final request = ++_historyRequest;
     final slot = widget.slot;
-    if (slot == null) return const [];
-    return widget.reusableSlots
-        .where(
-          (candidate) =>
-              candidate.id != slot.id &&
-              candidate.startTime.compareTo(slot.startTime) < 0 &&
-              candidate.menu?.trim().isNotEmpty == true,
-        )
-        .toList();
+    setState(() {
+      _previousMenus = const [];
+      _sourceSlotId = null;
+      _historyFailed = false;
+      _loadingHistory = slot != null;
+    });
+    if (slot == null) return;
+    try {
+      final rows = await widget.api.recentMenus(slot.startTime);
+      final history = rows.map(ServiceSlot.fromJson).toList();
+      if (mounted && request == _historyRequest) {
+        setState(() => _previousMenus = history);
+      }
+    } catch (_) {
+      if (mounted && request == _historyRequest) {
+        setState(() => _historyFailed = true);
+      }
+    } finally {
+      if (mounted && request == _historyRequest) {
+        setState(() => _loadingHistory = false);
+      }
+    }
   }
 
   void _applyPreviousMenu() {
@@ -295,7 +315,11 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
                         isExpanded: true,
                         underline: const SizedBox.shrink(),
                         hint: Text(
-                          previousMenus.isEmpty
+                          _loadingHistory
+                              ? 'Loading previous menus…'
+                              : _historyFailed
+                              ? 'Could not load previous menus'
+                              : previousMenus.isEmpty
                               ? 'No earlier menus available'
                               : 'Choose a previous menu',
                           style: textTheme.bodySmall,
@@ -306,7 +330,7 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
                               (candidate) => DropdownMenuItem(
                                 value: candidate.id,
                                 child: Text(
-                                  '${candidate.startLabel}–${candidate.endLabel}',
+                                  '${candidate.startTime} · ${candidate.menu?.replaceAll(RegExp(r'<[^>]*>'), ' ').trim() ?? ''}',
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -318,6 +342,9 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
                       ),
                     ),
                     const SizedBox(width: AppConstants.spacingSm),
+                    if (_historyFailed)
+                      IconButton(onPressed: _loadHistory, icon: const Icon(Icons.refresh),
+                          tooltip: 'Retry menu history'),
                     TextButton(
                       key: const ValueKey('apply-previous-menu'),
                       onPressed: selectedSource == null || _publishing

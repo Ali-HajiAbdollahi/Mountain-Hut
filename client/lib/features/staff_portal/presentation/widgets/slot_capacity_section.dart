@@ -286,7 +286,6 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
         SlotMenuConfigurationCard(
           api: widget.api,
           slot: _active,
-          reusableSlots: _slots,
           onMenuPublished: (slotId, menu) {
             setState(() {
               _slots = _slots
