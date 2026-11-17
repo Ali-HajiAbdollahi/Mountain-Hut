@@ -42,8 +42,17 @@ class FakeApi extends Fake implements MountainHutApi {
   ApiException? hikersError;
   Map<String, dynamic> staffBookingResponse = {'booking': {'bID': 12, 'reference': 'MH-12'}};
   ApiException? staffBookingError;
+  int repeatedSlots = 3;
+  ApiException? repeatWeekError;
 
   Iterable<Call> called(String method) => calls.where((c) => c.method == method);
+
+  @override
+  Future<int> repeatWeek({required String sourceWeek, required String targetWeek}) async {
+    calls.add(Call('repeatWeek', {'sourceWeek': sourceWeek, 'targetWeek': targetWeek}));
+    if (repeatWeekError != null) throw repeatWeekError!;
+    return repeatedSlots;
+  }
 
   @override
   Future<Map<String, dynamic>> currentUser() async {
