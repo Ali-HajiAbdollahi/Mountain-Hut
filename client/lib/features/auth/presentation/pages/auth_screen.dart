@@ -9,6 +9,8 @@ import '../../domain/repositories/auth_repository.dart';
 import '../widgets/register_form.dart';
 import '../widgets/security_card.dart';
 import '../widgets/sign_in_form.dart';
+import 'change_password_screen.dart';
+import 'request_password_reset_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({
@@ -57,13 +59,44 @@ class _AuthScreenState extends State<AuthScreen> {
         email: email,
         password: password,
       );
-      if (mounted) widget.onSignIn?.call(user);
+      if (!mounted) return;
+      // A temporary password (account created by an employee) must be changed
+      // before anything else.
+      final signedIn = user['must_change_password'] == true
+          ? await _changeTemporaryPassword() ?? user
+          : user;
+      if (mounted) widget.onSignIn?.call(signedIn);
     } on ApiException catch (error) {
       if (mounted) setState(() => _errorMessage = error.message);
     } on AppException catch (error) {
       if (mounted) setState(() => _errorMessage = error.message);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _changeTemporaryPassword() {
+    return Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ChangePasswordScreen(authRepository: widget.authRepository),
+      ),
+    );
+  }
+
+  Future<void> _openForgotPassword() async {
+    final reset = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            RequestPasswordResetScreen(authRepository: widget.authRepository),
+      ),
+    );
+    if (reset == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password updated. Sign in with your new password.'),
+        ),
+      );
     }
   }
 
@@ -150,7 +183,8 @@ class _AuthScreenState extends State<AuthScreen> {
                             key: const ValueKey('sign-in'),
                             authContext: widget.authContext,
                             onSubmit: _signIn,
-                            onForgotPassword: widget.onForgotPassword,
+                            onForgotPassword:
+                                widget.onForgotPassword ?? _openForgotPassword,
                             errorMessage: _errorMessage,
                             isSubmitting: _isSubmitting,
                           ),

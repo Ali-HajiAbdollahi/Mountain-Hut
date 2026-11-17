@@ -3,19 +3,21 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../booking/presentation/widgets/requirement_people_stepper.dart';
 
-Future<bool> showModifyReservationModal(
+/// Returns the server response of the change (`booking` and `notification`),
+/// or null when nothing was changed.
+Future<Map<String, dynamic>?> showModifyReservationModal(
   BuildContext context, {
   required Map<String, dynamic> booking,
   required MountainHutApi api,
-}) async {
-  final changed = await showModalBottomSheet<bool>(
+}) {
+  return showModalBottomSheet<Map<String, dynamic>>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _ModifyReservationSheet(booking: booking, api: api),
   );
-  return changed == true;
 }
 
 class _ModifyReservationSheet extends StatefulWidget {
@@ -39,6 +41,7 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
   bool _loading = true;
   bool _saving = false;
   bool _newRequirementAllergy = false;
+  int? _newRequirementPeople;
   String? _error;
 
   @override
@@ -69,10 +72,24 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
     if (values is! List) return [];
     return values.whereType<Map>().map<Map<String, dynamic>>((item) {
       return {
+        'n_people': item['n_people'] is int ? item['n_people'] : null,
         'description': item['description']?.toString() ?? '',
         'allergy': item['allergy'] == true,
       };
     }).toList();
+  }
+
+  /// A requirement cannot concern more people than the party: counts follow a smaller party.
+  void _setPeople(int people) {
+    setState(() {
+      _people = people;
+      for (final item in _requirements) {
+        final count = item['n_people'];
+        if (count is int && count > people) item['n_people'] = people;
+      }
+      final pending = _newRequirementPeople;
+      if (pending != null && pending > people) _newRequirementPeople = people;
+    });
   }
 
   DateTime get _today {
@@ -128,11 +145,13 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
     }
     setState(() {
       _requirements.add(<String, dynamic>{
+        'n_people': _newRequirementPeople,
         'description': description,
         'allergy': _newRequirementAllergy,
       });
       _newRequirementController.clear();
       _newRequirementAllergy = false;
+      _newRequirementPeople = null;
       _error = null;
     });
   }
@@ -146,6 +165,7 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
         return;
       }
       requirements.add({
+        'n_people': ?item['n_people'],
         'description': description,
         'allergy': item['allergy'] == true,
       });
@@ -155,13 +175,13 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
       _error = null;
     });
     try {
-      await widget.api.updateBooking(
+      final response = await widget.api.updateBooking(
         int.tryParse('${widget.booking['bID']}') ?? 0,
         slotId: _slotId,
         people: _people,
         requirements: requirements,
       );
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) Navigator.of(context).pop(response);
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
@@ -283,13 +303,13 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
                               children: [
                                 IconButton(
                                   onPressed: _people > 1
-                                      ? () => setState(() => _people--)
+                                      ? () => _setPeople(_people - 1)
                                       : null,
                                   icon: const Icon(Icons.remove),
                                 ),
                                 Text('$_people'),
                                 IconButton(
-                                  onPressed: () => setState(() => _people++),
+                                  onPressed: () => _setPeople(_people + 1),
                                   icon: const Icon(Icons.add),
                                 ),
                               ],
@@ -331,34 +351,53 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
                               horizontal: AppConstants.spacingSm,
                               vertical: 4,
                             ),
-                            child: Row(
+                            child: Column(
                               children: [
-                                Icon(
-                                  _requirements[index]['allergy'] == true
-                                      ? Icons.auto_awesome
-                                      : Icons.eco_outlined,
-                                  color: _requirements[index]['allergy'] == true
-                                      ? AppColors.danger
-                                      : AppColors.tertiary,
-                                  size: 18,
+                                Row(
+                                  children: [
+                                    Icon(
+                                      _requirements[index]['allergy'] == true
+                                          ? Icons.auto_awesome
+                                          : Icons.eco_outlined,
+                                      color:
+                                          _requirements[index]['allergy'] ==
+                                              true
+                                          ? AppColors.danger
+                                          : AppColors.tertiary,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(
+                                      width: AppConstants.spacingSm,
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        _requirements[index]['description']
+                                                ?.toString() ??
+                                            '',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: _saving
+                                          ? null
+                                          : () => setState(
+                                              () => _requirements.removeAt(
+                                                index,
+                                              ),
+                                            ),
+                                      icon: const Icon(Icons.close, size: 18),
+                                      tooltip: 'Remove requirement',
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: AppConstants.spacingSm),
-                                Expanded(
-                                  child: Text(
-                                    _requirements[index]['description']
-                                            ?.toString() ??
-                                        '',
-                                    style: const TextStyle(fontSize: 12),
+                                RequirementPeopleStepper(
+                                  value: _requirements[index]['n_people'] as int?,
+                                  maxPeople: _people,
+                                  enabled: !_saving,
+                                  onChanged: (value) => setState(
+                                    () => _requirements[index]['n_people'] =
+                                        value,
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed: _saving
-                                      ? null
-                                      : () => setState(
-                                          () => _requirements.removeAt(index),
-                                        ),
-                                  icon: const Icon(Icons.close, size: 18),
-                                  tooltip: 'Remove requirement',
                                 ),
                               ],
                             ),
@@ -373,6 +412,13 @@ class _ModifyReservationSheetState extends State<_ModifyReservationSheet> {
                             fillColor: AppColors.lightControl,
                             border: InputBorder.none,
                           ),
+                        ),
+                        RequirementPeopleStepper(
+                          value: _newRequirementPeople,
+                          maxPeople: _people,
+                          enabled: !_saving,
+                          onChanged: (value) =>
+                              setState(() => _newRequirementPeople = value),
                         ),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
