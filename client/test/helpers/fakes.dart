@@ -44,6 +44,9 @@ class FakeApi extends Fake implements MountainHutApi {
   ApiException? staffBookingError;
   int repeatedSlots = 3;
   ApiException? repeatWeekError;
+  List<Map<String, dynamic>> recentMenuRows = [];
+  ApiException? recentMenusError;
+  ApiException? publishMenuError;
 
   Iterable<Call> called(String method) => calls.where((c) => c.method == method);
 
@@ -52,6 +55,20 @@ class FakeApi extends Fake implements MountainHutApi {
     calls.add(Call('repeatWeek', {'sourceWeek': sourceWeek, 'targetWeek': targetWeek}));
     if (repeatWeekError != null) throw repeatWeekError!;
     return repeatedSlots;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> recentMenus(String before) async {
+    calls.add(Call('recentMenus', {'before': before}));
+    if (recentMenusError != null) throw recentMenusError!;
+    return [...recentMenuRows];
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishSlotMenu(int slotId, String menu) async {
+    calls.add(Call('publishSlotMenu', {'slotId': slotId, 'menu': menu}));
+    if (publishMenuError != null) throw publishMenuError!;
+    return {'tsID': slotId, 'menu': menu};
   }
 
   @override
