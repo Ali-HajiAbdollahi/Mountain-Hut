@@ -34,7 +34,7 @@ Times use the hut's local time in `Europe/Rome` and the format `YYYY-MM-DD HH:mm
 
 The API uses a session cookie named `mh.sid`. The Flutter Web client should use `MountainHutApi` (which uses `BrowserClient()..withCredentials = true`) so the browser sends and receives the HTTP-only cookie. Do not try to read that cookie in application code. Log in through `POST /api/sessions` before calling endpoints that require a hiker or employee session. The role on the server-side session determines access; do not send a user ID or role to establish identity.
 
-This documentation describes backend contracts. The current `MountainHutApi` supports MH-04 availability checks, but does not yet implement a `PATCH` method for MH-06 or staff-search/staff-booking methods for MH-07. Those client methods must be added before Flutter pages can call those endpoints through the shared client. The MH-07 backend router is now mounted at `/api/staff` by `app.js` and passed in from `index.js`.
+The shared Flutter `MountainHutApi` provides methods for MH-04 availability checks, MH-06 booking updates, and MH-07 hiker search and staff booking. The employee reservation UI must omit `password` when creating a full hiker account and display or communicate the one-time `generatedPassword` returned by the server. The MH-07 backend router is mounted at `/api/staff` by `app.js` and passed in from `index.js`.
 
 ### Error response format
 
@@ -114,7 +114,7 @@ Invalid dates, times, or party sizes return `400`.
 
 ## MH-06 — Change a booking
 
-A logged-in hiker can change a booking they own only if the meal starts at least 48 hours from the time of the change. Changes to party size or slot are subject to the availability check and automatic table allocation. When changing to a different timeslot, the target timeslot must also start at least two hours from the time of the change, following the MH-01 booking cutoff. Exactly 48 hours before the meal and exactly two hours before the target slot are allowed.
+A logged-in hiker can change a booking they own only if the meal starts at least 48 hours from the time of the change. When only the party size changes, the server first checks whether the party still fits at the currently assigned tables. If it does, those tables are kept and the seat allocation is adjusted within them. If it does not, the server reallocates tables using the MH-01 allocation rules; insufficient capacity rejects the change and leaves the booking unchanged. Moving to another timeslot also reallocates tables in that slot. The target timeslot must start at least two hours from the time of the change, following the MH-01 booking cutoff. Exactly 48 hours before the meal and exactly two hours before the target slot are allowed.
 
 ### `PATCH /api/bookings/:id`
 
@@ -184,19 +184,23 @@ Success response (`200`):
       { "rID": 7, "n_people": 1, "description": "Peanut allergy", "allergy": true },
       { "rID": 8, "n_people": null, "description": "No pork", "allergy": false }
     ]
+  },
+  "notification": {
+    "status": "accepted",
+    "messageId": "message-id"
   }
 }
 ```
 
-The response also includes database fields such as `created_at` and `created_by` when present. A missing booking or a booking owned by another user returns `404`. A change made less than 48 hours before the meal, a move to a target timeslot starting less than two hours later, a duplicate booking in the target slot, or insufficient capacity returns `409`.
+The response also includes database fields such as `created_at` and `created_by` when present. `notification.status` is `accepted`, `disabled`, or `failed`; `messageId` is included when the mail provider accepts the message. The booking change is saved before email delivery, so a failed email does not undo a successful change. A missing booking or a booking owned by another user returns `404`. A change made less than 48 hours before the meal, a move to a target timeslot starting less than two hours later, a duplicate booking in the target slot, or insufficient capacity returns `409`.
 
-The current `MountainHutApi` does not support `PATCH` and has no `updateBooking()` method. Add the method to the client before wiring the edit-booking page; the path and JSON contract above describe the backend endpoint.
+The shared client provides `MountainHutApi.updateBooking()`. It returns the response map containing both `booking` and `notification`; the UI can use `notification.status` to show whether the update email was sent.
 
 ---
 
 ## MH-07 — Reserve for a hiker (employee API)
 
-These endpoints let an employee search for a registered hiker and create a booking for an existing, temporary, or newly registered hiker. Authentication: logged-in `employee`.
+These endpoints let an employee search for a registered hiker and create a booking for an existing, temporary, or newly registered hiker. Authentication: logged-in `employee`. Employee bookings are accepted until the slot starts; a request at or after the start time returns `409`. The two-hour cutoff for normal hiker bookings does not apply to employee bookings.
 
 > **Backend wiring:** `index.js` creates `staffBookingRouter` and passes it to `createApp`; `app.js` mounts it at `/api/staff` before the 404 handler. Once the server is running, these routes are available to authenticated employee sessions.
 
@@ -262,12 +266,11 @@ Choose exactly one hiker mode:
   "mode": "register",
   "name": "New Hiker",
   "email": "new.hiker@example.com",
-  "phone": "3335550000",
-  "password": "choose-a-password"
+  "phone": "3335550000"
 }
 ```
 
-The full-registration mode requires non-empty `name`, `email`, `phone`, and `password`; the regular registration service validates the email and requires a password of at least 8 characters. The temporary mode does not require an email or password.
+The full-registration mode requires non-empty `name`, `email`, and `phone`. Do not send a `password`: the server generates a random password, stores only its password hash and salt, and returns the plaintext password once in the successful creation response. The employee must communicate it to the hiker. It is not returned by later booking or profile reads. The temporary mode does not require an email or password.
 
 Complete example:
 
@@ -314,9 +317,20 @@ Success response (`201`):
 
 The actual response includes the booking's slot dates and saved requirements. It also includes a `Location` header with `/api/bookings/{bID}`. Temporary bookings have `uID: null`; registered hiker bookings have the profile's `uID`. `created_by` identifies the employee.
 
+When `hiker.mode` is `register`, the response also includes the one-time generated password:
+
+```json
+{
+  "booking": { "bID": 43, "uID": 9 },
+  "generatedPassword": "server-generated-random-value"
+}
+```
+
+For `existing` and `temporary` modes, `generatedPassword` is omitted. The current backend does not yet require a newly created hiker to change this password at first login; that behavior requires the separate MH-07 password-change work.
+
 Invalid mode or input returns `400`; a missing slot or hiker returns `404`; duplicate booking or insufficient capacity returns `409`; and a missing login or non-employee login returns `401` or `403`, respectively.
 
-The current Flutter API client does not yet define methods for either staff endpoint. Add them to the shared client before calling them from the employee reservation flow.
+The shared Flutter client provides `MountainHutApi.searchHikers()` and `MountainHutApi.createStaffBooking()` for these endpoints. Ensure the full-registration UI does not ask the employee to enter a password and displays the one-time `generatedPassword` after the account is created.
 
 ---
 
@@ -325,5 +339,5 @@ The current Flutter API client does not yet define methods for either staff endp
 1. For Flutter Web, use `API_BASE_URL=http://localhost:3001/api`; endpoint paths in this document show the full `/api/...` route, while the client methods append only the suffix after `/api`.
 2. Use `GET /api/availability` for the public availability check; it does not create or hold a reservation.
 3. Use `PATCH /api/bookings/{bID}` for a hiker changing their own reservation; send only the changed fields.
-4. Use the `/api/staff` endpoints with an authenticated employee session; add corresponding Flutter client methods before wiring them to the employee reservation flow.
+4. Use the `/api/staff` endpoints with an authenticated employee session. For full registration, omit the password from the request and communicate the one-time generated password returned by the server.
 5. Display `error.message` to the user where suitable, and handle `409` as a booking conflict that may require selecting another slot or party size.

@@ -2,7 +2,7 @@ import { slotMenuInput } from '../domain/slotMenuInput.js';
 import { readWeeks, mapWeeklySlot } from '../domain/weekSchedule.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
-import { dateOnly, validateInterval } from '../domain/time.js';
+import { dateOnly, slotTime, validateInterval } from '../domain/time.js';
 
 export function createSlotService(dao) {
   function details(id) {
@@ -39,11 +39,17 @@ export function createSlotService(dao) {
   }
   return {
     repeatWeek(body) {
-      const { from, to, days } = readWeeks(body);
-      const slots = dao.listRange(from, to);
-      if (!slots.length) throw new ValidationError('Source week has no slots');
-      const copies = slots.map(slot => mapWeeklySlot(slot, days));
-      return { slotIds: dao.copyWeek(copies) };
+      const { from, to, targetFrom, targetTo, days } = readWeeks(body);
+      return dao.atomic(() => {
+        if (dao.targetHasBookings(targetFrom, targetTo)) {
+          throw new ConflictError('The target week has reservations: it cannot be replaced');
+        }
+        const slots = dao.listRange(from, to);
+        if (!slots.length) throw new ValidationError('Source week has no slots');
+        const copies = slots.map(slot => mapWeeklySlot(slot, days));
+        const replacedCount = dao.deleteWeek(targetFrom, targetTo);
+        return { slotIds: dao.copyWeek(copies), replacedCount };
+      });
     },
     details,
     detailsWithMenu,
@@ -57,13 +63,17 @@ export function createSlotService(dao) {
       onlyKeys(body,['start_time','end_time','tables','copy_from_tsID']);
       validateInterval(body.start_time,body.end_time);
       return dao.atomic(()=>{
-        if (dao.sameInterval(body.start_time,body.end_time))
-          throw new ConflictError('Slot already exists');
+        if (dao.overlaps(body.start_time,body.end_time))
+          throw new ConflictError('Slot overlaps an existing slot');
         const rows = layout(body);
         const id = dao.insert(body.start_time,body.end_time);
         dao.insertTables(id,rows);
         return details(id);
       });
+    },
+    recentMenus(before) {
+      slotTime(before);
+      return dao.recentMenus(before);
     },
     publishMenu(id, body) {
       const menu = dao.saveSlotMenu(id, slotMenuInput(body));

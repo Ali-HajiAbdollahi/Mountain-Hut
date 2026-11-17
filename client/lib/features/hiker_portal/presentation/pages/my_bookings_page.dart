@@ -115,14 +115,33 @@ class _MyBookingsPageState extends State<MyBookingsPage>
   }
 
   Future<void> _modify(Map<String, dynamic> booking) async {
-    if (!await showModifyReservationModal(
+    // Resolved before the async gap, so the snackbar does not depend on this
+    // page still being mounted when the sheet closes.
+    final messenger = ScaffoldMessenger.of(context);
+    final response = await showModifyReservationModal(
       context,
       booking: booking,
       api: widget.api,
-    )) {
-      return;
-    }
-    await _loadBookings();
+    );
+    if (response == null) return;
+
+    final status = (response['notification'] as Map?)?['status'];
+    final message = switch (status) {
+      'accepted' => 'Reservation updated. A confirmation email has been sent.',
+      'failed' =>
+        'Reservation updated, but the confirmation email could not be sent.',
+      _ => 'Reservation updated. No confirmation email was sent.',
+    };
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+
+    if (mounted) await _loadBookings();
   }
 
   Future<void> _cancel(Map<String, dynamic> booking) async {
