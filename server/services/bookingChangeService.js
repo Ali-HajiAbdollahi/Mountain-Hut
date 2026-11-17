@@ -51,6 +51,36 @@ function requirementsInput(rows, partySize) {
   });
 }
 
+function resizeCurrentAssignments(currentAssignments, availableTables, partySize) {
+  const capacityByTable = new Map(
+    availableTables.map(table => [table.table_no, table.free_seats]),
+  );
+  const assignments = currentAssignments
+    .map(({ table_no, seats }) => ({ table_no, seats }))
+    .sort((a, b) => a.table_no - b.table_no);
+  const assignedSeats = assignments.reduce((total, table) => total + table.seats, 0);
+
+  if (partySize < assignedSeats) {
+    let seatsToRelease = assignedSeats - partySize;
+    for (let i = assignments.length - 1; i >= 0 && seatsToRelease > 0; i--) {
+      const released = Math.min(assignments[i].seats, seatsToRelease);
+      assignments[i].seats -= released;
+      seatsToRelease -= released;
+    }
+  } else if (partySize > assignedSeats) {
+    let seatsToAdd = partySize - assignedSeats;
+    for (const assignment of assignments) {
+      const capacity = capacityByTable.get(assignment.table_no) ?? assignment.seats;
+      const added = Math.min(capacity - assignment.seats, seatsToAdd);
+      assignment.seats += added;
+      seatsToAdd -= added;
+      if (seatsToAdd === 0) break;
+    }
+  }
+
+  return assignments.filter(table => table.seats > 0);
+}
+
 export function createBookingChangeService(bookings, slots) {
   return {
     update(id, body, user) {
@@ -109,9 +139,44 @@ export function createBookingChangeService(bookings, slots) {
           tsID !== current.tsID || partySize !== current.n_people;
 
         if (seatingChanged) {
+          let assignments;
+
+          // If only the party size changed, first see whether the booking can
+          // stay on its currently assigned tables. Add this booking's seats
+          // back to each table's free-seat count because slots.tables() excludes
+          // seats already occupied by this booking.
+          if (tsID === current.tsID && partySize !== current.n_people) {
+            const existingAssignments = current.tables ?? [];
+            const currentSeatsByTable = new Map(
+              existingAssignments.map(table => [table.table_no, table.seats]),
+            );
+            const currentTables = slots.tables(tsID)
+              .filter(table => currentSeatsByTable.has(table.table_no))
+              .map(table => ({
+                ...table,
+                free_seats: table.free_seats + currentSeatsByTable.get(table.table_no),
+              }));
+            const availableOnCurrentTables = currentTables.reduce(
+              (total, table) => total + table.free_seats,
+              0,
+            );
+
+            if (availableOnCurrentTables >= partySize) {
+              assignments = resizeCurrentAssignments(
+                existingAssignments,
+                currentTables,
+                partySize,
+              );
+            }
+          }
+
           bookings.removeAssignments(id);
 
-          const assignments = allocateTables(slots.tables(tsID), partySize);
+          // If the old tables cannot fit the new party (or the booking moved
+          // to another slot), fall back to the normal MH-01 allocation rules.
+          if (!assignments) {
+            assignments = allocateTables(slots.tables(tsID), partySize);
+          }
 
           bookings.update(id, { tsID, n_people: partySize });
           bookings.assign(id, tsID, assignments);

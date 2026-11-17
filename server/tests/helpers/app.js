@@ -63,7 +63,7 @@ export function createTestContext() {
   );
   const hikeDao = createHikeDao(db);
   const hikeRouter = createHikeRouter(createHikeService(hikeDao));
-  const app = createApp(db, { bookingRouter, staffBookingRouter, hikeRouter });
+  const app = createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, mail });
   return { db, app, mail, auth, hikeDao };
 }
 

@@ -105,14 +105,13 @@ void main() {
       expect(TemporaryHiker(name: 'Rossi Group').toJson(), {'mode': 'temporary', 'name': 'Rossi Group'});
     });
 
-    test('regular profile: name, email, phone and password', () {
-      final choice = RegisterHiker(name: 'Anna', email: 'anna@hut.it', phone: '333', password: 'password123');
+    test('regular profile: name, email and phone, never a password', () {
+      final choice = RegisterHiker(name: 'Anna', email: 'anna@hut.it', phone: '333');
       expect(choice.toJson(), {
         'mode': 'register',
         'name': 'Anna',
         'email': 'anna@hut.it',
         'phone': '333',
-        'password': 'password123',
       });
     });
   });

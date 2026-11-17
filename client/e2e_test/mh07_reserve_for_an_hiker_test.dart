@@ -4,6 +4,7 @@
 // choose date, slot, party size and requirements.
 import 'dart:math';
 
+import 'package:client/core/network/mountain_hut_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -85,21 +86,36 @@ void main() {
     expect(slot['free_seats'], 4); // 6 seats - 2 people
   });
 
-  testWidgets('a new hiker gets a regular profile and can then sign in to see the booking', (tester) async {
+  testWidgets('a new hiker gets a regular profile with a generated password that must be changed', (tester) async {
     final hiker = (email: uniqueEmail(), name: 'Giulia Verdi');
 
     await openWalkInTab(tester);
     await searchHiker(tester, 'Giulia Verdi ${Random().nextInt(1 << 30)}');
     await waitFor(tester, find.textContaining('No registered hiker found'));
     await tap(tester, find.text('Regular Profile'));
+    expect(find.text('Password'), findsNothing); // the server generates it
     await type(tester, fieldWithHint('Elena Rossi'), hiker.name);
     await type(tester, fieldWithHint('elena.rossi@alpinists.ch'), hiker.email);
     await type(tester, fieldWithHint('+41 78 890 1234'), '+39 333 7654321');
-    await type(tester, fieldWithHint('••••••••'), password);
     await tap(tester, find.text('Confirm Registration'));
     await bookLunch(tester, people: 4);
 
-    final booking = (await bookingsOf(hiker)).single; // the new profile can log in
+    // the employee reads the password once and hands it to the hiker
+    await waitFor(tester, find.text('HIKER ACCOUNT CREATED'));
+    final generated = tester.widget<SelectableText>(find.byKey(const ValueKey('generated-password'))).data!;
+    await tap(tester, find.text('Done'));
+
+    final api = MountainHutApi();
+    final user = await api.login(hiker.email, generated);
+    expect(user['must_change_password'], true);
+    await expectLater(
+      api.myBookings(),
+      throwsA(isA<ApiException>().having((e) => e.code, 'code', 'PASSWORD_CHANGE_REQUIRED')),
+    );
+
+    await api.changePassword(currentPassword: generated, newPassword: password);
+    final booking = (await api.myBookings()).single;
+    await api.logout();
     expect(booking['n_people'], 4);
     expect(booking['contact_name'], 'Giulia Verdi');
   });

@@ -18,6 +18,9 @@ class ApiEndpoints {
   static const String users = '/users';
   static const String sessions = '/sessions';
   static const String currentSession = '/sessions/current';
+  static const String currentPassword = '/users/current/password';
+  static const String passwordResets = '/password-resets';
+  static const String passwordResetConfirm = '/password-resets/confirm';
   static const String timeslots = '/timeslots';
   static const String bookings = '/bookings';
   static const String availability = '/availability';

@@ -252,6 +252,26 @@ void main() {
       expect(api.called('createSlot'), isEmpty);
     });
 
+    testWidgets('an end time before the start time cannot cross midnight', (
+      tester,
+    ) async {
+      final api = FakeApi();
+      await _pumpSection(tester, api);
+      await _changeDay(tester, future);
+
+      await _tap(tester, find.text('Add Custom Service Slot'));
+      await _pickTime(tester, 'Start time', 23, 0);
+      await _pickTime(tester, 'End time', 1, 0);
+      await _tap(tester, find.text('Create slot'));
+      expect(
+        find.text(
+          'A service slot must end on the same day (cannot cross midnight).',
+        ),
+        findsOneWidget,
+      );
+      expect(api.called('createSlot'), isEmpty);
+    });
+
     testWidgets('the end time must be after the start time', (tester) async {
       final api = FakeApi();
       await _pumpSection(tester, api);
@@ -259,20 +279,20 @@ void main() {
 
       await _tap(tester, find.text('Add Custom Service Slot'));
       await _pickTime(tester, 'Start time', 14, 0);
-      await _pickTime(tester, 'End time', 13, 0);
+      await _pickTime(tester, 'End time', 14, 0);
       await _tap(tester, find.text('Create slot'));
       expect(find.text('End time must be after start time.'), findsOneWidget);
       expect(api.called('createSlot'), isEmpty);
     });
 
     testWidgets(
-      'the server refusal (409 slot already exists) is shown to the employee',
+      'the server refusal (409 slot overlap) is shown inside the dialog',
       (tester) async {
         final api = FakeApi()
           ..createSlotError = const ApiException(
             409,
             'CONFLICT',
-            'Slot already exists',
+            'Slot overlaps an existing slot',
           );
         await _pumpSection(tester, api);
         await _changeDay(tester, future);
@@ -281,7 +301,14 @@ void main() {
         await _pickTime(tester, 'Start time', 19, 0);
         await _pickTime(tester, 'End time', 20, 0);
         await _tap(tester, find.text('Create slot'));
-        expect(find.text('Slot already exists'), findsOneWidget);
+        expect(
+          find.text(
+            'This slot overlaps with an existing one. '
+            'Please choose a different time.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('ADD SERVICE SLOT'), findsOneWidget);
       },
     );
   });

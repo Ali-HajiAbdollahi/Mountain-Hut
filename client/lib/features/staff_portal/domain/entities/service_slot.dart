@@ -85,6 +85,10 @@ class ServiceSlot {
 
   bool get hasLayout => tables.isNotEmpty;
 
+  /// Employees can book until the slot starts (no 2-hour limit, unlike web bookings).
+  bool hasStartedAt(DateTime now) =>
+      !DateTime.parse(startTime.replaceFirst(' ', 'T')).isAfter(now);
+
   String get startLabel => startTime.substring(11, 16);
   String get endLabel => endTime.substring(11, 16);
 

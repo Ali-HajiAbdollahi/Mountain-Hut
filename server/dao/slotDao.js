@@ -1,3 +1,4 @@
+import { ConflictError } from '../errors.js';
 import { transaction } from './transaction.js';
 
 export function createSlotDao(db) {
@@ -16,8 +17,8 @@ export function createSlotDao(db) {
     find: id => slot.get(id),
     menu: id => menuForSlot.get(id)?.menu ?? null,
     tables: id => tables.all(id),
-    sameInterval: (a,b) => db.prepare(
-      'SELECT tsID FROM timeslots WHERE start_time=? AND end_time=?').get(a,b),
+    overlaps: (a,b) => db.prepare(
+      'SELECT tsID FROM timeslots WHERE start_time < ? AND end_time > ? LIMIT 1').get(b,a),
     list: date => db.prepare(`
       SELECT s.tsID, sm.menu
       FROM timeslots AS s
@@ -28,6 +29,20 @@ export function createSlotDao(db) {
     // Slots starting in [from, to), e.g. a week; times are 'YYYY-MM-DD HH:MM' strings.
     listRange: (from,to) => db.prepare(`SELECT tsID,start_time,end_time FROM timeslots
       WHERE start_time>=? AND start_time<? ORDER BY start_time,tsID`).all(from,to),
+    recentMenus(before) {
+      return db.prepare(`
+        WITH ranked AS (
+          SELECT s.tsID, s.start_time, s.end_time, m.menu,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY m.menu ORDER BY s.start_time DESC, s.tsID DESC
+                 ) AS rank_no
+          FROM slot_menus m JOIN timeslots s ON s.tsID = m.tsID
+          WHERE s.start_time < ?
+        )
+        SELECT tsID, start_time, end_time, menu FROM ranked WHERE rank_no = 1
+        ORDER BY start_time DESC, tsID DESC LIMIT 20
+      `).all(before);
+    },
     saveSlotMenu(tsID, menu) {
       return db.prepare(`
         INSERT INTO slot_menus (tsID, menu)
@@ -41,16 +56,26 @@ export function createSlotDao(db) {
       for (const t of rows) insertTable.run(id,t.table_no,t.seats);
     },
 
-    // MH-135: copies the table layout of each source slot into a new slot at the
-    // destination times supplied by the service: [{ sourceTsID, start_time, end_time }].
-    // Only table numbers and capacities are copied, so the new slots have no bookings.
-    // All-or-nothing: any failing insert (e.g. an existing slot) rolls back the whole
-    // copy and the error propagates. Returns the new tsIDs, in the order of the input.
-    copyWeek: copies => dao.atomic(() => copies.map(({ sourceTsID, start_time, end_time }) => {
-      const id = dao.insert(start_time, end_time);
-      dao.insertTables(id, dao.tables(sourceTsID).map(({ table_no, seats }) => ({ table_no, seats })));
-      return id;
-    })),
+    targetHasBookings(from, to) {
+      return Boolean(db.prepare(`
+        SELECT 1 FROM bookings b JOIN timeslots s ON s.tsID = b.tsID
+        WHERE s.start_time >= ? AND s.start_time < ? LIMIT 1
+      `).get(from, to));
+    },
+    deleteWeek(from, to) {
+      return Number(db.prepare(
+        'DELETE FROM timeslots WHERE start_time >= ? AND start_time < ?'
+      ).run(from, to).changes);
+    },
+    // The service owns the transaction covering source reads and replacement.
+    copyWeek(copies) {
+      return copies.map(({ sourceTsID, start_time, end_time }) => {
+        if (dao.overlaps(start_time, end_time)) throw new ConflictError('Slot overlaps an existing slot');
+        const id = dao.insert(start_time, end_time);
+        dao.insertTables(id, dao.tables(sourceTsID).map(({ table_no, seats }) => ({ table_no, seats })));
+        return id;
+      });
+    },
   };
   return dao;
 }

@@ -21,13 +21,38 @@ const hashPassword = (password, salt) =>
 const DUMMY_SALT = crypto.randomBytes(16).toString('hex');
 
 // strips password and salt so they never leave the service
-const publicUser = ({ uID, name, email, phone, role }) => ({ uID, name, email, phone, role });
+const publicUser = ({ uID, name, email, phone, role, must_change_password }) =>
+  ({ uID, name, email, phone, role, must_change_password: must_change_password === 1 });
+
+// password reset links stay valid for 24 hours
+const RESET_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_PASSWORD_LENGTH = 128;
+// only the hash of a reset token is stored, so a database leak does not expose usable tokens
+const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
+const iso = ms => new Date(ms).toISOString();
+
+function newPassword(value) {
+  if (typeof value !== 'string' || value.length < MIN_PASSWORD_LENGTH || value.length > MAX_PASSWORD_LENGTH)
+    throw new ValidationError(
+      `Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`);
+  return value;
+}
+
+// true when the password matches the stored hash (constant-time comparison)
+function passwordMatches(user, password) {
+  const hasPassword = user?.password && user?.salt;
+  // hash even for unknown users (with the dummy salt) to keep timing similar
+  const candidate = hashPassword(String(password ?? ''), hasPassword ? user.salt : DUMMY_SALT);
+  return Boolean(hasPassword) &&
+    crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(user.password, 'hex'));
+}
 
 // builds the auth service on top of a user DAO
 export function createAuthService(userDao) {
   return {
     // REGISTRATION: always creates a 'hiker' (employees are not self-registerable).
-    register({ name, email, phone, password }) {
+    // mustChangePassword is set for accounts created by an employee (MH-07).
+    register({ name, email, phone, password, mustChangePassword = false }) {
       // trim the name -> stays undefined if it was not provided
       name = name?.trim();
       // trim and lowercase the email -> the same address is always stored the same way
@@ -50,7 +75,7 @@ export function createAuthService(userDao) {
         // insert the user and keep the generated uID
         const uID = userDao.insert({
           // Role is fixed to 'hiker'; only the hash and the salt are stored, never the password
-          name, email, phone, role: 'hiker', password: hashPassword(password, salt), salt,
+          name, email, phone, role: 'hiker', password: hashPassword(password, salt), salt, mustChangePassword,
         });
         // read the row back and return it without password and salt
         return publicUser(userDao.findById(uID));
@@ -66,17 +91,47 @@ export function createAuthService(userDao) {
     login({ email, password }) {
       // Look the user up by normalized email; a non-string email means no user
       const user = typeof email === 'string' ? userDao.findByEmail(email.trim().toLowerCase()) : undefined;
-      // true only if the user exists and has both a password hash and a salt
-      const hasPassword = user?.password && user?.salt;
-      // hash the submitted password even for unknown users (with the dummy salt) to keep timing similar
-      const candidate = hashPassword(String(password ?? ''), hasPassword ? user.salt : DUMMY_SALT);
-
-      // reject: there is no usable password, or if the hashes differ (timingSafeEqual avoids timing leaks)
-      if (!hasPassword || !crypto.timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(user.password, 'hex')))
-        // same message for every failure case
-        throw new AuthenticationError('Invalid email or password');
+      // reject: there is no usable password, or the hashes differ; same message for every failure case
+      if (!passwordMatches(user, password)) throw new AuthenticationError('Invalid email or password');
       // success: return the user without password and salt
       return publicUser(user);
+    },
+
+    // Changes the password of the logged-in user and clears the "must change" flag.
+    changePassword(uID, { current_password, new_password }) {
+      const user = userDao.findById(uID);
+      if (!user || !passwordMatches(user, current_password))
+        throw new ValidationError('Current password is not correct');
+      newPassword(new_password);
+      if (new_password === current_password)
+        throw new ValidationError('The new password must be different from the current one');
+      const salt = crypto.randomBytes(16).toString('hex');
+      userDao.setPassword(uID, hashPassword(new_password, salt), salt, false);
+      return publicUser(userDao.findById(uID));
+    },
+
+    // Issues a reset token for the email. Returns { token, user } or null when the email is unknown:
+    // the caller must answer in the same way in both cases.
+    requestPasswordReset(email, now = Date.now()) {
+      const user = typeof email === 'string' ? userDao.findByEmail(email.trim().toLowerCase()) : undefined;
+      if (!user) return null;
+      const token = crypto.randomBytes(32).toString('base64url');
+      userDao.issueResetToken({
+        tokenHash: hashToken(token), uID: user.uID, expiresAt: iso(now + RESET_TOKEN_TTL_MS), now: iso(now),
+      });
+      return { token, user: publicUser(user) };
+    },
+
+    // Sets a new password with a valid, unused, unexpired token. The token is accepted only once.
+    resetPassword(token, password, now = Date.now()) {
+      newPassword(password);
+      if (typeof token !== 'string' || !token) throw new ValidationError('Invalid or expired reset link');
+      userDao.atomic(() => {
+        const uID = userDao.consumeResetToken(hashToken(token), iso(now));
+        if (!uID) throw new ValidationError('Invalid or expired reset link');
+        const salt = crypto.randomBytes(16).toString('hex');
+        userDao.setPassword(uID, hashPassword(password, salt), salt, false);
+      });
     },
   };
 }
