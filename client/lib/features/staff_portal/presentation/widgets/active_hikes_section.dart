@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/mountain_hut_api.dart';
@@ -17,37 +18,68 @@ class _ActiveHikesSectionState extends State<ActiveHikesSection> {
   String? _error;
   List<Map<String, dynamic>> _hikes = [];
 
+  Timer? _refreshTimer;
+  bool _requestInProgress = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+
+    // Automatically refresh active hikes every 30 seconds.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        _load(showLoading: false);
+      }
+    });
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool showLoading = true}) async {
+    if (_requestInProgress) return;
+    _requestInProgress = true;
+
+    if (showLoading && _hikes.isEmpty) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final hikes = await widget.api.listActiveHikes();
       if (!mounted) return;
+
       setState(() {
         _hikes = hikes;
         _loading = false;
+        _error = null;
       });
     } on ApiException catch (error) {
       if (!mounted) return;
+
       setState(() {
-        _error = error.message;
+        if (_hikes.isEmpty) {
+          _error = error.message;
+        }
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
+
       setState(() {
-        _error = 'Unable to load active hikes.';
+        if (_hikes.isEmpty) {
+          _error = 'Unable to load active hikes.';
+        }
         _loading = false;
       });
+    } finally {
+      _requestInProgress = false;
     }
   }
 
@@ -105,7 +137,7 @@ class _ActiveHikesSectionState extends State<ActiveHikesSection> {
     }
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () => _load(),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
