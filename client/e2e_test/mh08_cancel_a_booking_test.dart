@@ -1,7 +1,6 @@
 // MH-08 Cancel a booking — E2E (real app + real backend)
 // As a hiker I can cancel a table booking, so that the hut can make the places
 // available to other guests. Clarification: there are no time constraints.
-import 'dart:math';
 
 import 'package:client/core/network/mountain_hut_api.dart';
 import 'package:flutter/material.dart';
@@ -87,12 +86,20 @@ void main() {
 
   testWidgets('less than 48 hours before the meal the booking is locked for changes but can be cancelled',
       (tester) async {
-    // tomorrow, between 20:00 and 22:59: always less than 48 h but more than 2 h away
+    // tomorrow, between 20:00 and 23:50: always less than 48 h but more than 2 h away
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    final minute = Random().nextInt(180);
-    final start = '${two(20 + minute ~/ 60)}:${two(minute % 60)}';
-    final soonId = await createSlot(tomorrow, start, '23:59', tablesOf([4]));
+    String at(int minutes) => '${ymd(tomorrow)} ${two(minutes ~/ 60)}:${two(minutes % 60)}';
+    final taken = await slotsOn(tomorrow);
+    final free = [for (var m = 20 * 60; m <= 23 * 60 + 40; m += 10) m]
+        .where((m) => taken.every((s) =>
+            (s['start_time'] as String).compareTo(at(m + 10)) >= 0 ||
+            (s['end_time'] as String).compareTo(at(m)) <= 0))
+        .toList()
+      ..shuffle();
+    final start = at(free.first).substring(11);
+    final end = at(free.first + 10).substring(11);
+    final soonId = await createSlot(tomorrow, start, end, tablesOf([4]));
     final soon = await bookAs(hiker, soonId, 2);
 
     await openMyBookings(tester, hiker, soon);
