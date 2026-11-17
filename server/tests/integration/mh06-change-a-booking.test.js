@@ -80,10 +80,11 @@ describe('PATCH /api/bookings/:id', () => {
       expect(seatsOf(ctx, dinnerBID)).toEqual({ 2: 2 });
     });
 
-    it('keeps the same tables when the bigger party still fits at them', async () => {
-      const res = await marco.patch(`/api/bookings/${dinnerBID}`).send({ n_people: 5 });
+    it('treats the new party size as a new booking, even when it still fits at the old tables', async () => {
+      const res = await marco.patch(`/api/bookings/${dinnerBID}`).send({ n_people: 3 });
       expect(res.status).toBe(200);
-      expect(seatsOf(ctx, dinnerBID)).toEqual({ 2: 5 });
+      expect(res.body.booking.n_people).toBe(3);
+      expect(seatsOf(ctx, dinnerBID)).toEqual({ 1: 3 });
     });
 
     it('reassigns the tables with the MH-01 rules when the party no longer fits at them', async () => {
@@ -169,14 +170,14 @@ describe('PATCH /api/bookings/:id', () => {
     });
   });
 
-  // [BUG] MH-06 rule (confirmed by the team): changes are allowed until 48 hours before
-  // the booked meal. The code counts 48 hours from created_at instead. Fails until fixed.
-  it('[BUG] allows changes to an old booking while the meal is more than 48 hours away', async () => {
+  // MH-06 rule (confirmed by the team): changes are allowed until 48 hours before
+  // the booked meal, however old the booking is.
+  it('allows changes to an old booking while the meal is more than 48 hours away', async () => {
     setCreatedAt(bID, '2026-11-01 10:00:00'); // booked a month ago, meal on 5 Dec
     expect((await marco.patch(`/api/bookings/${bID}`).send({ n_people: 3 })).status).toBe(200);
   });
 
-  it('[BUG] refuses changes less than 48 hours before the meal', async () => {
+  it('refuses changes less than 48 hours before the meal', async () => {
     const tomorrow = addSlot(ctx, '2026-12-02 12:00', '2026-12-02 13:00', { 1: 4 });
     const res = await marco.post('/api/bookings').send({ tsID: tomorrow, n_people: 2 });
     setCreatedAt(res.body.booking.bID, '2026-12-01 06:00:00'); // booked one hour ago
@@ -202,10 +203,9 @@ describe('PATCH /api/bookings/:id', () => {
     expect((await request(ctx.app).patch(`/api/bookings/${bID}`).send({ n_people: 3 })).status).toBe(401);
   });
 
-  // [BUG] Team decision: the destination slot of a move must respect the same 2-hour
-  // booking window as a new booking (MH-01). PATCH does not check it, so a hiker can move
-  // a booking into a slot that starts in a few minutes or has already started. Fails until fixed.
-  it('[BUG] refuses to move a booking into a slot that starts in less than 2 hours', async () => {
+  // Team decision: the destination slot of a move must respect the same 2-hour
+  // booking window as a new booking (MH-01).
+  it('refuses to move a booking into a slot that starts in less than 2 hours', async () => {
     const soon = addSlot(ctx, '2026-12-01 09:59', '2026-12-01 11:00', { 1: 4 }); // in 1h59
     expect((await marco.patch(`/api/bookings/${bID}`).send({ tsID: soon })).status).toBe(409);
   });
