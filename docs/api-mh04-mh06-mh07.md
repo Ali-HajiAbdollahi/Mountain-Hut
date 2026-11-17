@@ -114,7 +114,7 @@ Invalid dates, times, or party sizes return `400`.
 
 ## MH-06 — Change a booking
 
-A logged-in hiker can change a booking they own only if the meal starts at least 48 hours from the time of the change. When only the party size changes, the server first checks whether the party still fits at the currently assigned tables. If it does, those tables are kept and the seat allocation is adjusted within them. If it does not, the server reallocates tables using the MH-01 allocation rules; insufficient capacity rejects the change and leaves the booking unchanged. Moving to another timeslot also reallocates tables in that slot. The target timeslot must start at least two hours from the time of the change, following the MH-01 booking cutoff. Exactly 48 hours before the meal and exactly two hours before the target slot are allowed.
+A logged-in hiker can change a booking they own only if the meal starts at least 48 hours from the time of the change. A change of party size is treated as a new booking: the current seats are released and the tables are assigned again using the MH-01 allocation rules, even when the party would still fit at the tables it had; insufficient capacity rejects the change and leaves the booking unchanged. Moving to another timeslot also reallocates tables in that slot. The target timeslot must start at least two hours from the time of the change, following the MH-01 booking cutoff. Exactly 48 hours before the meal and exactly two hours before the target slot are allowed.
 
 ### `PATCH /api/bookings/:id`
 

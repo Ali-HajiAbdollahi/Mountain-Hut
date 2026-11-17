@@ -63,17 +63,16 @@ describe('bookingChangeService.update — who and what can change', () => {
     expect(() => service.update(10, { contact_name: 'x' }, hiker)).toThrow(ValidationError);
   });
 
-  // [BUG] MH-06 rule (confirmed by the team): a booking can be changed until 48 hours
-  // before the booked meal (slot start_time). bookingChangeService instead counts 48 hours
-  // from created_at, i.e. from when the booking was made. Fails until fixed.
-  it('[BUG] allows changes up to exactly 48 hours before the meal, however old the booking is', () => {
+  // MH-06 rule (confirmed by the team): a booking can be changed until 48 hours
+  // before the booked meal (slot start_time), however old the booking is.
+  it('allows changes up to exactly 48 hours before the meal, however old the booking is', () => {
     // NOW is 1 Dec 08:00 Europe/Rome; the meal is 3 Dec 08:00
     const { service } = setup({
       booking: { ...current, start_time: '2026-12-03 08:00', created_at: '2026-11-01 10:00:00' } });
     expect(() => service.update(10, { n_people: 3 }, hiker)).not.toThrow();
   });
 
-  it('[BUG] refuses changes less than 48 hours before the meal, even for a new booking', () => {
+  it('refuses changes less than 48 hours before the meal, even for a new booking', () => {
     const { bookings, service } = setup({
       booking: { ...current, start_time: '2026-12-03 07:59', created_at: '2026-12-01 06:00:00' } });
     expect(() => service.update(10, { n_people: 3 }, hiker)).toThrow(ConflictError);
@@ -107,9 +106,9 @@ describe('bookingChangeService.update — seats and requirements', () => {
     expect(() => service.update(10, { tsID: 99 }, hiker)).toThrow(NotFoundError);
   });
 
-  // [BUG] Team decision: the destination slot must respect the 2-hour booking window
-  // of MH-01, like a new booking. Fails until fixed.
-  it('[BUG] refuses to move into a slot that starts in less than 2 hours', () => {
+  // Team decision: the destination slot must respect the 2-hour booking window
+  // of MH-01, like a new booking.
+  it('refuses to move into a slot that starts in less than 2 hours', () => {
     // NOW is 1 Dec 08:00 Europe/Rome
     const { bookings, service } = setup({ slot: { tsID: 2, start_time: '2026-12-01 09:59' } });
     expect(() => service.update(10, { tsID: 2 }, hiker)).toThrow(ConflictError);
