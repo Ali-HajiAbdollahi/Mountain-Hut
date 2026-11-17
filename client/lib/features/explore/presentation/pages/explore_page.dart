@@ -325,6 +325,14 @@ class _ExplorePageState extends State<ExplorePage> {
               children: [
                 const HutWelcomeBanner(),
                 const SizedBox(height: AppConstants.spacingMd),
+                _MealScheduleSection(
+                  slots: _slots,
+                  isLoading: _isLoadingSlots,
+                  errorMessage: _slotsErrorMessage,
+                  dateLabel: _displayDate(_selectedDate),
+                  onRetry: _loadSlots,
+                ),
+                const SizedBox(height: AppConstants.spacingMd),
                 Text(
                   'Check Table Availability',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -1033,5 +1041,143 @@ class _SectionLabel extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _MealScheduleSection extends StatelessWidget {
+  const _MealScheduleSection({
+    required this.slots,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.dateLabel,
+    required this.onRetry,
+  });
+
+  final List<Map<String, dynamic>> slots;
+  final bool isLoading;
+  final String? errorMessage;
+  final String dateLabel;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+
+    return Card(
+      color: AppColors.infoSurface,
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.spacingMd),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.restaurant_menu, color: AppColors.primary),
+                const SizedBox(width: AppConstants.spacingSm),
+                Expanded(
+                  child: Text(
+                    'MEAL SCHEDULE',
+                    style: theme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.access_time,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppConstants.spacingXs),
+            Text(
+              'Scheduled meal times • $dateLabel',
+              style: theme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppConstants.spacingMd),
+            if (isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (errorMessage != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      errorMessage!,
+                      style: theme.bodySmall?.copyWith(color: AppColors.danger),
+                    ),
+                  ),
+                  TextButton(onPressed: onRetry, child: const Text('Retry')),
+                ],
+              )
+            else if (slots.isEmpty)
+              Text(
+                'No scheduled meals are available for this date.',
+                style: theme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              )
+            else
+              for (final slot in slots) _MealScheduleTile(slot: slot),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MealScheduleTile extends StatelessWidget {
+  const _MealScheduleTile({required this.slot});
+
+  final Map<String, dynamic> slot;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = _scheduleTime(slot['start_time']);
+    final end = _scheduleTime(slot['end_time']);
+    final hour = int.tryParse(start.split(':').first) ?? 0;
+    final isLunch = hour < 17;
+    final mealName = isLunch ? 'Lunch' : 'Dinner';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppConstants.spacingSm),
+      padding: const EdgeInsets.all(AppConstants.spacingSm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+        border: Border.all(color: AppColors.lightBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isLunch ? Icons.lunch_dining : Icons.dinner_dining,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
+          Expanded(
+            child: Text(
+              mealName,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Text(
+            '$start - $end',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _scheduleTime(Object? value) {
+    final timestamp = value?.toString() ?? '';
+    return timestamp.length >= 16 ? timestamp.substring(11, 16) : timestamp;
   }
 }
