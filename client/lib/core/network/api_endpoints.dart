@@ -33,4 +33,6 @@ class ApiEndpoints {
   static String confirmation(int id) => '$bookings/$id/confirmation';
   static const String staffHikers = '/staff/hikers';
   static const String staffBookings = '/staff/bookings';
+  static const String hikes = '/hikes';
+  static const String activeHikes = '$hikes/active';
 }

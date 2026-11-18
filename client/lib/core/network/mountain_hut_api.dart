@@ -210,6 +210,9 @@ class MountainHutApi {
   Future<List<Map<String, dynamic>>> listSlots(String date) =>
       _list(ApiEndpoints.timeslots, query: {'date': date});
 
+  Future<List<Map<String, dynamic>>> listActiveHikes() =>
+      _list(ApiEndpoints.activeHikes);
+
   Future<Map<String, dynamic>> getSlot(int id) =>
       _object('GET', ApiEndpoints.timeslot(id));
 
