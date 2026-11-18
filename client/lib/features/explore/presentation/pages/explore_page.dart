@@ -363,6 +363,16 @@ class _ExplorePageState extends State<ExplorePage> {
                   onCheckAvailability: _checkAvailability,
                   onRetrySlots: _loadSlots,
                 ),
+                if (_isHikerSignedIn) ...[
+                  const SizedBox(height: AppConstants.spacingMd),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      AppNavigation.hikeRegistration(api: widget.api),
+                    ),
+                    icon: const Icon(Icons.hiking, size: 18),
+                    label: const Text('Register a Planned Hike'),
+                  ),
+                ],
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppConstants.spacingMd),
                   _ErrorMessage(message: _errorMessage!),
