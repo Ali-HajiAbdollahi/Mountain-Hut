@@ -12,6 +12,7 @@ import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/hiker_portal/presentation/pages/my_bookings_page.dart';
 import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/staff_portal/presentation/pages/staff_dashboard_page.dart';
+import '../../features/hike_registration/presentation/pages/hike_registration_page.dart';
 
 class AppNavigation {
   const AppNavigation._();
@@ -126,6 +127,15 @@ class AppNavigation {
       reverseTransitionDuration: Duration.zero,
       pageBuilder: (context, animation, secondaryAnimation) =>
           StaffDashboardPage(authRepository: authRepository, api: api),
+    );
+  }
+
+  static Route<void> hikeRegistration({required MountainHutApi api}) {
+    return PageRouteBuilder<void>(
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          HikeRegistrationPage(api: api),
     );
   }
 }
