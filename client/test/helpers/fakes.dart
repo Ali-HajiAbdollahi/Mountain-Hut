@@ -1,4 +1,6 @@
 // Test doubles shared by the frontend tests: no backend and no network.
+import 'dart:async';
+
 import 'package:client/core/constants/hut_information.dart';
 import 'package:client/core/network/mountain_hut_api.dart';
 import 'package:client/features/auth/domain/repositories/auth_repository.dart';
@@ -47,6 +49,11 @@ class FakeApi extends Fake implements MountainHutApi {
   List<Map<String, dynamic>> recentMenuRows = [];
   ApiException? recentMenusError;
   ApiException? publishMenuError;
+  Object? registerHikeError;
+  Completer<void>? registerHikeGate;
+  List<Map<String, dynamic>> activeHikes = [];
+  Object? activeHikesError;
+  Completer<void>? activeHikesGate;
 
   Iterable<Call> called(String method) => calls.where((c) => c.method == method);
 
@@ -69,6 +76,22 @@ class FakeApi extends Fake implements MountainHutApi {
     calls.add(Call('publishSlotMenu', {'slotId': slotId, 'menu': menu}));
     if (publishMenuError != null) throw publishMenuError!;
     return {'tsID': slotId, 'menu': menu};
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerHike(Map<String, dynamic> hike) async {
+    calls.add(Call('registerHike', {'hike': hike}));
+    if (registerHikeGate != null) await registerHikeGate!.future;
+    if (registerHikeError != null) throw registerHikeError!;
+    return {'hID': 1, ...hike, 'returned_at': null, 'waypoints': hike['waypoints'] ?? []};
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listActiveHikes() async {
+    calls.add(Call('listActiveHikes'));
+    if (activeHikesGate != null) await activeHikesGate!.future;
+    if (activeHikesError != null) throw activeHikesError!;
+    return [...activeHikes];
   }
 
   @override
