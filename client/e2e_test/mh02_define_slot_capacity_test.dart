@@ -32,10 +32,14 @@ void main() {
     await typeInTimePicker(tester, hour, minute);
   }
 
-  Future<void> addSlot(WidgetTester tester, int startHour, int endHour) async {
+  Future<void> addSlot(WidgetTester tester, int startHour, int endHour, {String? layout}) async {
     await tap(tester, find.text('Add Custom Service Slot'));
     await pickTime(tester, 'Start time', startHour, 0);
     await pickTime(tester, 'End time', endHour, 0);
+    if (layout != null) {
+      await tap(tester, find.text('Define later'));
+      await tap(tester, find.text(layout).last);
+    }
     await tap(tester, find.text('Create slot'));
     await waitFor(tester, find.text('Slot created.'));
   }
@@ -68,9 +72,7 @@ void main() {
     await createSlot(day, '12:00', '13:00', tablesOf([2, 4]));
 
     await openStaffPortalOn(tester, day);
-    await addSlot(tester, 13, 14);
-    await tap(tester, find.text('Reuse Layout'));
-    await waitFor(tester, find.text('Layout copied.'));
+    await addSlot(tester, 13, 14, layout: 'Copy 12:00–13:00 (6 seats)');
 
     final second = (await slotsOn(day)).singleWhere((s) => s['start_time'] == '${ymd(day)} 13:00');
     expect(second['capacity'], 6);
