@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/rich_text_controller.dart';
+import 'slot_menu_card.dart';
 
-class MealServiceSlotCard extends StatefulWidget {
+class MealServiceSlotCard extends StatelessWidget {
   const MealServiceSlotCard({
     required this.label,
     required this.leadingIcon,
@@ -23,35 +23,7 @@ class MealServiceSlotCard extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<MealServiceSlotCard> createState() => _MealServiceSlotCardState();
-}
-
-class _MealServiceSlotCardState extends State<MealServiceSlotCard> {
-  late final RichTextController _menuController;
-
-  @override
-  void initState() {
-    super.initState();
-    _menuController = RichTextController(html: widget.menuHtml ?? '');
-  }
-
-  @override
-  void didUpdateWidget(covariant MealServiceSlotCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.menuHtml != widget.menuHtml) {
-      _menuController.loadHtml(widget.menuHtml ?? '');
-    }
-  }
-
-  @override
-  void dispose() {
-    _menuController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final selected = widget.selected;
     final backgroundColor = selected ? AppColors.surface : AppColors.lightSlot;
     final textTheme = Theme.of(context).textTheme;
 
@@ -82,7 +54,7 @@ class _MealServiceSlotCardState extends State<MealServiceSlotCard> {
             Material(
               color: backgroundColor,
               child: InkWell(
-                onTap: widget.onTap,
+                onTap: onTap,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppConstants.spacingMd,
@@ -91,7 +63,7 @@ class _MealServiceSlotCardState extends State<MealServiceSlotCard> {
                   child: Row(
                     children: [
                       Icon(
-                        widget.leadingIcon,
+                        leadingIcon,
                         size: 18,
                         color: selected
                             ? AppColors.primary
@@ -104,15 +76,15 @@ class _MealServiceSlotCardState extends State<MealServiceSlotCard> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              widget.label,
+                              label,
                               style: textTheme.labelMedium?.copyWith(
                                 color: AppColors.text,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (widget.detailLabel != null)
+                            if (detailLabel != null)
                               Text(
-                                widget.detailLabel!,
+                                detailLabel!,
                                 style: textTheme.bodySmall?.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
@@ -137,63 +109,10 @@ class _MealServiceSlotCardState extends State<MealServiceSlotCard> {
             ),
             if (selected) ...[
               const Divider(height: 1, color: AppColors.lightBorder),
-              _buildMenuPanel(context),
+              SlotMenuCard(menuHtml: menuHtml),
             ],
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMenuPanel(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final hasMenu = widget.menuHtml?.trim().isNotEmpty == true;
-
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.restaurant, size: 15, color: AppColors.primary),
-              const SizedBox(width: AppConstants.spacingXs),
-              Text(
-                'SLOT MENU • INCLUDED OPTIONS',
-                style: textTheme.labelSmall?.copyWith(
-                  color: AppColors.secondary,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
-            child: Divider(height: 1, color: AppColors.lightBorder),
-          ),
-          if (hasMenu)
-            RichText(
-              key: const ValueKey('slot-menu-content'),
-              text: _menuController.buildTextSpan(
-                context: context,
-                style: textTheme.bodySmall?.copyWith(
-                  color: AppColors.text,
-                  height: 1.4,
-                ),
-                withComposing: false,
-              ),
-            )
-          else
-            Text(
-              'No menu has been published for this slot.',
-              style: textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-        ],
       ),
     );
   }
