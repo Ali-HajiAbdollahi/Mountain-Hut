@@ -210,6 +210,9 @@ class MountainHutApi {
   Future<List<Map<String, dynamic>>> listSlots(String date) =>
       _list(ApiEndpoints.timeslots, query: {'date': date});
 
+  Future<List<Map<String, dynamic>>> listActiveHikes() =>
+      _list(ApiEndpoints.activeHikes);
+
   Future<Map<String, dynamic>> getSlot(int id) =>
       _object('GET', ApiEndpoints.timeslot(id));
 
@@ -369,6 +372,27 @@ class MountainHutApi {
         'n_people': people,
         'requirements': requirementsPayload(requirements),
       });
+
+    Future<Map<String, dynamic>> registerHike(
+      Map<String, dynamic> hike,
+    ) async {
+      final response = await _object(
+        'POST',
+        ApiEndpoints.hikes,
+        body: hike,
+      );
+
+      if (response['hike'] is! Map<String, dynamic>) {
+        throw const ApiException(
+          200,
+          'INVALID_RESPONSE',
+          'Expected registered hike object.',
+        );
+      }
+
+      return response['hike'] as Map<String, dynamic>;
+    }
+
 
   void close() => _client.close();
 }
