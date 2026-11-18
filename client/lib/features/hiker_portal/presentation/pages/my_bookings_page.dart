@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../widgets/cancel_booking_modal.dart';
 import '../widgets/modify_reservation_modal.dart';
+import '../../../hike_registration/presentation/widgets/my_hikes_section.dart';
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({required this.api, this.authRepository, super.key});
@@ -213,6 +214,8 @@ class _MyBookingsPageState extends State<MyBookingsPage>
                               onCancel: () => _cancel(booking),
                             ),
                           ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      MyHikesSection(api: widget.api),
                     ],
                   ),
           ),
