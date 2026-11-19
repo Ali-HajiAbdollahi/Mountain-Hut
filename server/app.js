@@ -12,6 +12,9 @@ import { loadUser, requirePasswordChanged } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { createAuthRouter } from './routes/authRoutes.js';
 import { createSlotRouter } from './routes/slotRoutes.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, mail } = {}) {
   const app = express();
@@ -29,6 +32,15 @@ export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, m
     }
     next();
   });
+
+  // Release (Docker): the backend also serves the compiled Flutter web app.
+  // Static files come before the session, so they are public even for accounts
+  // that must change their password.
+  const webDir = process.env.WEB_DIR
+    ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '../client/build/web');
+  const serveWeb = fs.existsSync(webDir);
+  if (serveWeb) app.use(express.static(webDir));
+
   app.use(express.json({ limit: '64kb' }));
   app.use(session({
     name: 'mh.sid',
@@ -57,6 +69,11 @@ export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, m
   if (bookingRouter) app.use('/api/bookings', bookingRouter);
   if (staffBookingRouter) app.use('/api/staff', staffBookingRouter);
   if (hikeRouter) app.use('/api/hikes', hikeRouter);
+
+  // Any other page address opens the web app, which handles its own navigation.
+  if (serveWeb) {
+    app.get(/^(?!\/api(\/|$)).*/, (req, res) => res.sendFile(path.join(webDir, 'index.html')));
+  }
 
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Endpoint not found' } }));
   app.use(errorHandler);
