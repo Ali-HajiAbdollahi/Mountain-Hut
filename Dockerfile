@@ -1,3 +1,6 @@
+# ---- Mailpit: casella di posta di prova (un solo file eseguibile) ---
+FROM axllent/mailpit:v1.34.0 AS mailpit
+
 # ---- Fase 1: compila la pagina web Flutter ---
 FROM ghcr.io/cirruslabs/flutter:stable AS web
 WORKDIR /app/client
@@ -12,7 +15,13 @@ ENV NODE_ENV=production \
     DB_PATH=/data/mountain_hut.db \
     WEB_DIR=/app/client/build/web \
     CLIENT_ORIGIN=http://localhost:3001 \
-    MAIL_MODE=disabled
+    START_MAILPIT=true \
+    MAIL_MODE=smtp \
+    SMTP_HOST=127.0.0.1 \
+    SMTP_PORT=1025 \
+    SMTP_SECURE=false \
+    MAIL_FROM=rifugio@mountain-hut.test
+COPY --from=mailpit /mailpit /usr/local/bin/mailpit
 WORKDIR /app
 COPY database/ ./database/
 COPY server/package*.json ./server/
@@ -20,6 +29,6 @@ RUN cd server && npm ci --omit=dev
 COPY server/ ./server/
 COPY --from=web /app/client/build/web ./client/build/web
 VOLUME /data
-EXPOSE 3001
+EXPOSE 3001 8025
 WORKDIR /app/server
 CMD ["node", "scripts/start-docker-server.js"]

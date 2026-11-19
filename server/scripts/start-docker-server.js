@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { spawn } from 'node:child_process';
 import { DateTime } from 'luxon';
 import { HUT_ZONE } from '../domain/time.js';
 const databaseDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../database');
@@ -35,4 +36,16 @@ if (!fs.existsSync(file)) {
   console.log(`Database created: ${file}`);
 }
 process.env.DB_PATH = file;
+
+// Mailpit collects the emails sent by the server (SMTP on port 1025, inside the container)
+// and shows them in a web inbox on port 8025.
+if (process.env.START_MAILPIT === 'true') {
+  const mailpit = spawn('mailpit', ['--listen', '0.0.0.0:8025', '--smtp', '127.0.0.1:1025'],
+    { stdio: ['ignore', 'ignore', 'inherit'] });
+  mailpit.on('error', error => console.error(`Mailpit could not start: ${error.message}`));
+  mailpit.on('exit', code => { if (code) console.error(`Mailpit stopped (exit code ${code})`); });
+  process.on('exit', () => mailpit.kill());
+  console.log('Emails are collected by Mailpit: http://localhost:8025');
+}
+
 await import('../index.js');
