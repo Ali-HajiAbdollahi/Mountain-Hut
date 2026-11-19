@@ -21,6 +21,8 @@ const ALLOWED_WHILE_PASSWORD_CHANGE_PENDING = new Set([
   'POST /api/password-resets/confirm',
 ]);
 export function requirePasswordChanged(req,res,next) {
+  // Only the API is restricted: the web app pages stay reachable, so the user can change the password.
+  if (!req.path.startsWith('/api/')) return next();
   if (req.user?.must_change_password && !ALLOWED_WHILE_PASSWORD_CHANGE_PENDING.has(`${req.method} ${req.path}`))
     return next(new PasswordChangeRequiredError('You must change your password before continuing'));
   next();

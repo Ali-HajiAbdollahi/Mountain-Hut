@@ -13,7 +13,8 @@
     "start:e2e": "node --env-file-if-exists=.env scripts/start-e2e-server.js",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "start:docker": "node scripts/start-docker-server.js"
   },
   "dependencies": {
     "cors": "2.8.6",
