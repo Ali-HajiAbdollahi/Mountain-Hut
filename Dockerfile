@@ -1,13 +1,13 @@
-# ---- Mailpit: casella di posta di prova (un solo file eseguibile) ---
+# ---- Mailpit: test mailbox (a single executable) ---
 FROM axllent/mailpit:v1.34.0 AS mailpit
 
-# ---- Fase 1: compila la pagina web Flutter ---
+# ---- Stage 1: build the Flutter web app ---
 FROM ghcr.io/cirruslabs/flutter:stable AS web
 WORKDIR /app/client
 COPY client/ ./
 RUN flutter pub get
 RUN flutter build web --release --dart-define=API_BASE_URL=/api
-# ---- Fase 2: server Node con la pagina web dentro ---
+# ---- Stage 2: Node server that also serves the web app ---
 FROM node:24-slim
 ENV NODE_ENV=production \
     PORT=3001 \
