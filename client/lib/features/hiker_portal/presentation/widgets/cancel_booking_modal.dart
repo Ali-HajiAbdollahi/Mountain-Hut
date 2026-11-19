@@ -108,7 +108,7 @@ class _CancelBookingDialogState extends State<_CancelBookingDialog> {
                   SizedBox(width: AppConstants.spacingSm),
                   Expanded(
                     child: Text(
-                      'Policy Verified: Cancellation is permitted (>48 hours prior to service).',
+                      'Cancellation is permitted until the slot ends.',
                       style: TextStyle(fontSize: 11, color: AppColors.tertiary),
                     ),
                   ),

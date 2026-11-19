@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'requirement_people_stepper.dart';
 
 class DietaryRequirementDraft {
   DietaryRequirementDraft();
@@ -9,18 +10,32 @@ class DietaryRequirementDraft {
   final controller = TextEditingController();
   bool isAllergy = false;
 
+  /// How many people of the party have the requirement; null = not specified.
+  int? people;
+
   void dispose() => controller.dispose();
+
+  /// The structure the API expects: `n_people` (optional), `description`, `allergy`.
+  Map<String, dynamic> toJson() => {
+    'n_people': ?people,
+    'description': controller.text.trim(),
+    'allergy': isAllergy,
+  };
 }
 
 class DietaryRequirementsSection extends StatefulWidget {
   const DietaryRequirementsSection({
     required this.requirements,
+    required this.partySize,
     required this.onDelete,
     required this.onAdd,
     super.key,
   });
 
   final List<DietaryRequirementDraft> requirements;
+
+  /// Upper limit of "people affected": a requirement cannot concern more people than the party.
+  final int partySize;
   final ValueChanged<int> onDelete;
   final VoidCallback onAdd;
 
@@ -32,6 +47,18 @@ class DietaryRequirementsSection extends StatefulWidget {
 class _DietaryRequirementsSectionState
     extends State<DietaryRequirementsSection> {
   String? _validationMessage;
+
+  @override
+  void didUpdateWidget(DietaryRequirementsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The party got smaller: keep every count within the new party size.
+    for (final requirement in widget.requirements) {
+      final people = requirement.people;
+      if (people != null && people > widget.partySize) {
+        requirement.people = widget.partySize;
+      }
+    }
+  }
 
   void _addRequirement() {
     final hasEmptyRequirement = widget.requirements.any(
@@ -73,6 +100,7 @@ class _DietaryRequirementsSectionState
             child: _RequirementCard(
               index: entry.$1,
               draft: entry.$2,
+              partySize: widget.partySize,
               onDelete: () => widget.onDelete(entry.$1),
               onChanged: () {
                 if (_validationMessage != null &&
@@ -109,12 +137,14 @@ class _RequirementCard extends StatefulWidget {
   const _RequirementCard({
     required this.index,
     required this.draft,
+    required this.partySize,
     required this.onDelete,
     required this.onChanged,
   });
 
   final int index;
   final DietaryRequirementDraft draft;
+  final int partySize;
   final VoidCallback onDelete;
   final VoidCallback onChanged;
 
@@ -165,6 +195,11 @@ class _RequirementCardState extends State<_RequirementCard> {
               hintText: 'Describe a dietary requirement or allergy',
               fillColor: AppColors.surface,
             ),
+          ),
+          RequirementPeopleStepper(
+            value: widget.draft.people,
+            maxPeople: widget.partySize,
+            onChanged: (value) => setState(() => widget.draft.people = value),
           ),
           Row(
             children: [

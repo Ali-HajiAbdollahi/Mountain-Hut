@@ -54,10 +54,7 @@ class _BookingPageState extends State<BookingPage> {
         );
         return;
       }
-      requirements.add({
-        'description': description,
-        'allergy': requirement.isAllergy,
-      });
+      requirements.add(requirement.toJson());
     }
 
     setState(() {
@@ -132,6 +129,7 @@ class _BookingPageState extends State<BookingPage> {
                 const SizedBox(height: AppConstants.spacingXl),
                 DietaryRequirementsSection(
                   requirements: _requirements,
+                  partySize: widget.allocation.partySize,
                   onDelete: _removeRequirement,
                   onAdd: () {
                     if (!_isSubmitting) {

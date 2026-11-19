@@ -83,6 +83,15 @@ describe('mailService', () => {
     expect(await createMailService(smtp).send('a@b.it', {})).toEqual({ status: 'failed' });
   });
 
+  it('gives up after MAIL_SEND_TIMEOUT_MS when the server never answers (e.g. DNS hanging)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    sendMail.mockImplementation(() => new Promise(() => {}));
+    const started = Date.now();
+    const result = await createMailService({ ...smtp, MAIL_SEND_TIMEOUT_MS: '50' }).send('a@b.it', {});
+    expect(result).toEqual({ status: 'failed' });
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
   it('reports a failure when the recipient is rejected', async () => {
     sendMail.mockResolvedValue({ accepted: [], rejected: ['a@b.it'] });
     expect(await createMailService(smtp).send('a@b.it', {})).toEqual({ status: 'failed' });

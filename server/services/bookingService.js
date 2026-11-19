@@ -24,6 +24,11 @@ export function createBookingService(bookings,slots) {
   }
   return {
     owned,
+    cancel(id, user) {
+      if (!bookings.cancelOwned(id, user.uID)) {
+        throw new NotFoundError('Booking not found');
+      }
+    },
     list: user=>bookings.listForUser(user.uID),
     create(body,user) {
       if (user.role !== 'hiker') throw new ForbiddenError('Hiker account required');

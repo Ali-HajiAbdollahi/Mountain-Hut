@@ -1,12 +1,12 @@
 // MH-07 Reserve for an hiker — unit tests (no database, fake DAOs)
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createStaffBookingService } from '../../services/staffBookingService.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../errors.js';
 
 const employee = { uID: 1, role: 'employee' };
 const registered = { uID: 5, name: 'Sara Verdi', email: 'sara@mail.it', phone: '333', role: 'hiker' };
 
-function setup({ user = registered, duplicate } = {}) {
+function setup({ user = registered, duplicate, slotStart = '2099-01-01 12:00' } = {}) {
   const users = { searchHikers: vi.fn(() => [registered]), findById: vi.fn(() => user) };
   const bookings = {
     atomic: action => action(),
@@ -17,7 +17,7 @@ function setup({ user = registered, duplicate } = {}) {
     find: vi.fn(bID => ({ bID })),
   };
   const slots = {
-    find: () => ({ tsID: 1, start_time: '2099-01-01 12:00' }),
+    find: () => ({ tsID: 1, start_time: slotStart }),
     tables: () => [{ table_no: 1, seats: 6, free_seats: 6 }],
   };
   const auth = { register: vi.fn(profile => ({ uID: 9, ...profile, role: 'hiker' })) };
@@ -85,18 +85,60 @@ describe('staffBookingService.create', () => {
     expect(() => reserve(service, { mode: 'temporary', name: '' })).toThrow(ValidationError);
   });
 
-  it('full details: creates a regular hiker profile and books for it', () => {
+  it('full details: creates a regular hiker profile with a random password that must be changed', () => {
     const { auth, bookings, service } = setup();
-    const profile = { name: 'Luca Neri', email: 'luca@mail.it', phone: '334', password: 'password123' };
-    reserve(service, { mode: 'register', ...profile });
-    expect(auth.register).toHaveBeenCalledWith(profile);
+    const profile = { name: 'Luca Neri', email: 'luca@mail.it', phone: '334' };
+    const { generatedPassword } = reserve(service, { mode: 'register', ...profile });
+    expect(auth.register).toHaveBeenCalledWith({ ...profile, password: generatedPassword, mustChangePassword: true });
+    expect(generatedPassword).toMatch(/^[A-Za-z0-9_-]{20,}$/);
     expect(bookings.insert.mock.calls[0][0].uID).toBe(9);
   });
 
-  it('full details: every field is required', () => {
+  it('full details: every generated password is different', () => {
     const { service } = setup();
-    expect(() => reserve(service, { mode: 'register', name: 'Luca', email: 'luca@mail.it', phone: '334' }))
-      .toThrow(/password/);
+    const passwords = [1, 2, 3].map(i =>
+      reserve(service, { mode: 'register', name: 'Luca', email: `l${i}@mail.it`, phone: '334' }).generatedPassword);
+    expect(new Set(passwords).size).toBe(3);
+  });
+
+  it('full details: name, email and phone are required and a password is not accepted', () => {
+    const { service } = setup();
+    const full = { mode: 'register', name: 'Luca', email: 'luca@mail.it', phone: '334' };
+    for (const field of ['name', 'email', 'phone'])
+      expect(() => reserve(service, { ...full, [field]: '' })).toThrow(new RegExp(field));
+    expect(() => reserve(service, { ...full, password: 'password123' })).toThrow(/Unexpected field/);
+  });
+
+  it('only the full details mode returns a password', () => {
+    const { service } = setup();
+    expect(reserve(service, { mode: 'existing', uID: 5 }).generatedPassword).toBeNull();
+    expect(reserve(service, { mode: 'temporary', name: 'Rossi' }).generatedPassword).toBeNull();
+  });
+
+  describe('time of the slot', () => {
+    // 1 Dec 2026, 12:00 Europe/Rome = 11:00 UTC
+    const slotStart = '2026-12-01 12:00';
+    const at = iso => { vi.useFakeTimers(); vi.setSystemTime(new Date(iso)); };
+    afterEach(() => vi.useRealTimers());
+
+    it('accepts a reservation made less than 2 hours before the slot', () => {
+      at('2026-12-01T10:30:00Z');
+      expect(() => reserve(setup({ slotStart }).service, { mode: 'existing', uID: 5 })).not.toThrow();
+    });
+
+    it('accepts a reservation until the very last second before the start', () => {
+      at('2026-12-01T10:59:59Z');
+      expect(() => reserve(setup({ slotStart }).service, { mode: 'existing', uID: 5 })).not.toThrow();
+    });
+
+    it('refuses a reservation at or after the start of the slot', () => {
+      for (const now of ['2026-12-01T11:00:00Z', '2026-12-01T11:30:00Z']) {
+        at(now);
+        const { service, bookings } = setup({ slotStart });
+        expect(() => reserve(service, { mode: 'existing', uID: 5 })).toThrow(ConflictError);
+        expect(bookings.insert).not.toHaveBeenCalled();
+      }
+    });
   });
 
   it('rejects an unknown mode or fields that do not belong to the mode', () => {

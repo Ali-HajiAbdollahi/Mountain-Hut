@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
@@ -8,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../widgets/cancel_booking_modal.dart';
 import '../widgets/modify_reservation_modal.dart';
+import '../../../hike_registration/presentation/widgets/my_hikes_section.dart';
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({required this.api, this.authRepository, super.key});
@@ -24,6 +27,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
   List<Map<String, dynamic>> _bookings = const [];
   bool _loading = true;
   String? _error;
+  Timer? _bookingEndTimer;
 
   @override
   void initState() {
@@ -34,6 +38,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
 
   @override
   void dispose() {
+    _bookingEndTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -53,11 +58,10 @@ class _MyBookingsPageState extends State<MyBookingsPage>
     try {
       final bookings = await widget.api.myBookings();
       bookings.sort((a, b) {
-        DateTime? parse(Object? value) =>
-            DateTime.tryParse((value?.toString() ?? '').replaceFirst(' ', 'T'));
-        final left = parse(a['created_at']) ?? parse(a['start_time']);
-        final right = parse(b['created_at']) ?? parse(b['start_time']);
-        if (left == null || right == null) return 0;
+        DateTime parse(Object? value) =>
+            DateTime.parse((value?.toString() ?? '').replaceFirst(' ', 'T'));
+        final left = parse(a['start_time']);
+        final right = parse(b['start_time']);
         return right.compareTo(left);
       });
       if (!mounted) return;
@@ -65,6 +69,7 @@ class _MyBookingsPageState extends State<MyBookingsPage>
         _bookings = bookings;
         _loading = false;
       });
+      _scheduleBookingEndUpdate();
     } on ApiException catch (error) {
       if (mounted) {
         setState(() {
@@ -82,6 +87,26 @@ class _MyBookingsPageState extends State<MyBookingsPage>
     }
   }
 
+  void _scheduleBookingEndUpdate() {
+    _bookingEndTimer?.cancel();
+    final now = DateTime.now();
+    DateTime? nextEnd;
+    for (final booking in _bookings) {
+      final end = _bookingEnd(booking);
+      if (end != null &&
+          end.isAfter(now) &&
+          (nextEnd == null || end.isBefore(nextEnd))) {
+        nextEnd = end;
+      }
+    }
+    if (nextEnd == null) return;
+    _bookingEndTimer = Timer(nextEnd.difference(now), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleBookingEndUpdate();
+    });
+  }
+
   bool _isModifiable(Map<String, dynamic> booking) {
     final start = booking['start_time']?.toString();
     if (start == null) return false;
@@ -91,14 +116,33 @@ class _MyBookingsPageState extends State<MyBookingsPage>
   }
 
   Future<void> _modify(Map<String, dynamic> booking) async {
-    if (!await showModifyReservationModal(
+    // Resolved before the async gap, so the snackbar does not depend on this
+    // page still being mounted when the sheet closes.
+    final messenger = ScaffoldMessenger.of(context);
+    final response = await showModifyReservationModal(
       context,
       booking: booking,
       api: widget.api,
-    )) {
-      return;
-    }
-    await _loadBookings();
+    );
+    if (response == null) return;
+
+    final status = (response['notification'] as Map?)?['status'];
+    final message = switch (status) {
+      'accepted' => 'Reservation updated. A confirmation email has been sent.',
+      'failed' =>
+        'Reservation updated, but the confirmation email could not be sent.',
+      _ => 'Reservation updated. No confirmation email was sent.',
+    };
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+
+    if (mounted) await _loadBookings();
   }
 
   Future<void> _cancel(Map<String, dynamic> booking) async {
@@ -109,6 +153,10 @@ class _MyBookingsPageState extends State<MyBookingsPage>
     )) {
       return;
     }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your booking was successfully cancelled.')),
+    );
     await _loadBookings();
   }
 
@@ -166,6 +214,8 @@ class _MyBookingsPageState extends State<MyBookingsPage>
                               onCancel: () => _cancel(booking),
                             ),
                           ),
+                      const SizedBox(height: AppConstants.spacingLg),
+                      MyHikesSection(api: widget.api),
                     ],
                   ),
           ),
@@ -279,6 +329,8 @@ class _BookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final end = _bookingEnd(booking);
+    final canCancel = end != null && end.isAfter(DateTime.now());
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -345,16 +397,6 @@ class _BookingCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_calendar_outlined),
                 label: const Text('EDIT / CHANGE BOOKING'),
               ),
-              // Comment here for this sprint, will be added in the next one
-              /*const SizedBox(height: AppConstants.spacingSm),
-              OutlinedButton.icon(
-                onPressed: onCancel,
-                icon: const Icon(Icons.cancel_outlined),
-                label: const Text('CANCEL BOOKING'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.danger,
-                ),
-              ),*/
             ] else ...[
               const _LockedWarningBox(),
               const SizedBox(height: AppConstants.spacingSm),
@@ -364,12 +406,30 @@ class _BookingCard extends StatelessWidget {
                 label: const Text('MODIFICATION LOCKED'),
               ),
             ],
+            if (canCancel) ...[
+              const SizedBox(height: AppConstants.spacingSm),
+              OutlinedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('CANCEL BOOKING'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                ),
+              ),
+            ] else if (end == null) ...[
+              const SizedBox(height: AppConstants.spacingSm),
+              const Text('Cancellation unavailable: invalid booking end time.'),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+DateTime? _bookingEnd(Map<String, dynamic> booking) => DateTime.tryParse(
+  (booking['end_time']?.toString() ?? '').replaceFirst(' ', 'T'),
+);
 
 class _BookingPolicyBox extends StatelessWidget {
   const _BookingPolicyBox({required this.until});
@@ -424,7 +484,7 @@ class _LockedWarningBox extends StatelessWidget {
           SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
-              'Locked: Changes must be made at least 48 hours in advance. Please contact the hut directly for urgent matters.',
+              'Editing is locked: Changes must be made at least 48 hours in advance.',
               style: TextStyle(fontSize: 11, color: AppColors.danger),
             ),
           ),
@@ -445,7 +505,7 @@ class _StatusBadge extends StatelessWidget {
       color: modifiable ? AppColors.successBadge : AppColors.lightControl,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
-        modifiable ? '● Confirmed' : '🔒 Locked (<48h)',
+        modifiable ? '● Confirmed' : '🔒 Editing locked',
         style: TextStyle(
           color: modifiable ? AppColors.tertiary : AppColors.textSecondary,
           fontSize: 11,
@@ -507,7 +567,7 @@ class _PolicyNotice extends StatelessWidget {
           SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
-              'Mountain Table Policy: Reservations can be modified up to 48 hours before your slot.',
+              'Mountain Table Policy: Reservations can be modified up to 48 hours before your slot and cancelled until the slot ends.',
               style: TextStyle(fontSize: 12),
             ),
           ),

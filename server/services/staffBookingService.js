@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   ConflictError,
   ForbiddenError,
@@ -5,8 +6,14 @@ import {
   ValidationError,
 } from '../errors.js';
 import { onlyKeys, positiveInt } from '../domain/validation.js';
-import { requireBookingWindow } from '../domain/time.js';
+import { slotTime } from '../domain/time.js';
 import { allocateTables } from '../domain/allocateTables.js';
+
+function requireSlotNotStarted(startTime, now = Date.now()) {
+  if (slotTime(startTime).toMillis() <= now) {
+    throw new ConflictError('The slot has already started');
+  }
+}
 
 function requirementsInput(rows, partySize) {
   if (!Array.isArray(rows)) {
@@ -40,7 +47,7 @@ function requirementsInput(rows, partySize) {
 }
 
 function hikerInput(value) {
-  onlyKeys(value, ['mode', 'uID', 'name', 'email', 'phone', 'password']);
+  onlyKeys(value, ['mode', 'uID', 'name', 'email', 'phone']);
 
   if (value.mode === 'existing') {
     onlyKeys(value, ['mode', 'uID']);
@@ -69,9 +76,9 @@ function hikerInput(value) {
   }
 
   if (value.mode === 'register') {
-    onlyKeys(value, ['mode', 'name', 'email', 'phone', 'password']);
+    onlyKeys(value, ['mode', 'name', 'email', 'phone']);
 
-    for (const field of ['name', 'email', 'phone', 'password']) {
+    for (const field of ['name', 'email', 'phone']) {
       if (typeof value[field] !== 'string' || !value[field].trim()) {
         throw new ValidationError(`${field} is required`);
       }
@@ -83,7 +90,6 @@ function hikerInput(value) {
         name: value.name,
         email: value.email,
         phone: value.phone,
-        password: value.password,
       },
     };
   }
@@ -116,14 +122,15 @@ export function createStaffBookingService(users, bookings, slots, auth) {
       const tsID = positiveInt(body.tsID, 'tsID');
       const partySize = positiveInt(body.n_people, 'n_people');
       const requirements = requirementsInput(body.requirements ?? [], partySize);
+      let generatedPassword = null;
 
-      return bookings.atomic(() => {
+      const booking = bookings.atomic(() => {
         const slot = slots.find(tsID);
         if (!slot) {
           throw new NotFoundError('Slot not found');
         }
 
-        requireBookingWindow(slot.start_time);
+        requireSlotNotStarted(slot.start_time);
 
         let profile;
 
@@ -138,7 +145,12 @@ export function createStaffBookingService(users, bookings, slots, auth) {
             throw new ConflictError('This hiker already has a booking in this slot');
           }
         } else if (hiker.mode === 'register') {
-          profile = auth.register(hiker.profile);
+          generatedPassword = randomBytes(18).toString('base64url');
+          profile = auth.register({
+            ...hiker.profile,
+            password: generatedPassword,
+            mustChangePassword: true,
+          });
         } else {
           profile = {
             uID: null,
@@ -162,6 +174,8 @@ export function createStaffBookingService(users, bookings, slots, auth) {
 
         return bookings.find(bID);
       });
+
+      return { booking, generatedPassword };
     },
   };
 }

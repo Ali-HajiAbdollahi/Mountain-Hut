@@ -39,6 +39,11 @@ export function createBookingDao(db) {
         WHERE b.uID=? ORDER BY s.start_time,b.bID`).all(uID).map(r=>this.find(r.bID));
     },
 
+    // MH-133: deletes the booking only if it belongs to uID; returns whether one was deleted.
+    // booking_tables and booking_requirements go with it through ON DELETE CASCADE
+    // (needs PRAGMA foreign_keys = ON), which frees the assigned seats.
+    cancelOwned: (bID,uID)=>db.prepare('DELETE FROM bookings WHERE bID=? AND uID=?').run(bID,uID).changes>0,
+
     removeAssignments(bID) {
       db.prepare('DELETE FROM booking_tables WHERE bID = ?').run(bID);
     },

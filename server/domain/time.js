@@ -25,6 +25,8 @@ export function dateOnly(value) {
 }
 export function validateInterval(start, end, now = Date.now()) {
   const a = slotTime(start), b = slotTime(end);
+  if (start.slice(0, 10) !== end.slice(0, 10))
+    throw new ValidationError('Slots must start and end on the same local day');
   if (b.toMillis() <= a.toMillis())
     throw new ValidationError('end_time must be after start_time');
   if (a.toMillis() <= now) throw new ValidationError('Slot must start in the future');

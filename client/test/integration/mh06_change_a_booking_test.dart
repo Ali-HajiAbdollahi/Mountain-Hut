@@ -130,6 +130,74 @@ void main() {
       expect(api.called('myBookings'), hasLength(2));
     });
 
+    modalTest('after saving, tells that the confirmation email was sent', (tester) async {
+      await openModifyModal(tester);
+      await tapInModal(tester, find.widgetWithIcon(IconButton, Icons.add));
+      await tapInModal(tester, find.text('SAVE CHANGES'));
+      expect(find.text('Reservation updated. A confirmation email has been sent.'), findsOneWidget);
+    });
+
+    modalTest('after saving, tells that the confirmation email could not be sent', (tester) async {
+      api.updateNotification = {'status': 'failed'};
+      await openModifyModal(tester);
+      await tapInModal(tester, find.widgetWithIcon(IconButton, Icons.add));
+      await tapInModal(tester, find.text('SAVE CHANGES'));
+      expect(
+        find.text('Reservation updated, but the confirmation email could not be sent.'),
+        findsOneWidget,
+      );
+      expect(find.text('MODIFY RESERVATION'), findsNothing);
+    });
+
+    modalTest('existing requirements keep their number of people, which can be changed', (tester) async {
+      api.bookings = [
+        bookingJson(start: nextWeek, requirements: [
+          {'n_people': 2, 'description': 'vegetarians', 'allergy': false},
+        ]),
+      ];
+      await openModifyModal(tester);
+      expect(find.text('2 of 4'), findsOneWidget);
+
+      await tapInModal(tester, find.byTooltip('More people affected').first);
+      await tapInModal(tester, find.text('SAVE CHANGES'));
+      expect(api.called('updateBooking').single.args['requirements'], [
+        {'n_people': 3, 'description': 'vegetarians', 'allergy': false},
+      ]);
+    });
+
+    modalTest('a new requirement is sent with the number of people it concerns', (tester) async {
+      await openModifyModal(tester);
+      await tester.enterText(find.byType(TextField), 'shellfish');
+      await tapInModal(tester, find.byTooltip('More people affected').last);
+      await tapInModal(tester, find.byTooltip('More people affected').last);
+      await tapInModal(tester, find.text('ADD DIETARY / ALLERGY REQUIREMENT'));
+      await tapInModal(tester, find.text('SAVE CHANGES'));
+
+      expect(api.called('updateBooking').single.args['requirements'], [
+        {'description': 'nut allergy', 'allergy': true},
+        {'n_people': 2, 'description': 'shellfish', 'allergy': false},
+      ]);
+    });
+
+    modalTest('reducing the party size lowers the number of people of a requirement', (tester) async {
+      api.bookings = [
+        bookingJson(start: nextWeek, requirements: [
+          {'n_people': 4, 'description': 'vegetarians', 'allergy': false},
+        ]),
+      ];
+      await openModifyModal(tester);
+      await tapInModal(tester, find.widgetWithIcon(IconButton, Icons.remove));
+      await tapInModal(tester, find.widgetWithIcon(IconButton, Icons.remove));
+      expect(find.text('2 of 2'), findsOneWidget);
+
+      await tapInModal(tester, find.text('SAVE CHANGES'));
+      final args = api.called('updateBooking').single.args;
+      expect(args['people'], 2);
+      expect(args['requirements'], [
+        {'n_people': 2, 'description': 'vegetarians', 'allergy': false},
+      ]);
+    });
+
     modalTest('a new allergy requirement is sent with its flag', (tester) async {
       await openModifyModal(tester);
       await tester.enterText(find.byType(TextField), 'shellfish');

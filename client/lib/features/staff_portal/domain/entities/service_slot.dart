@@ -42,6 +42,7 @@ class ServiceSlot {
     required this.capacity,
     required this.freeSeats,
     required this.tables,
+    this.menu,
   });
 
   factory ServiceSlot.fromJson(Map<String, dynamic> json) {
@@ -52,6 +53,7 @@ class ServiceSlot {
       endTime: json['end_time'] as String,
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
       freeSeats: (json['free_seats'] as num?)?.toInt() ?? 0,
+      menu: json['menu'] as String?,
       tables: rawTables is List
           ? rawTables
               .whereType<Map<String, dynamic>>()
@@ -69,8 +71,23 @@ class ServiceSlot {
   final int capacity;
   final int freeSeats;
   final List<TableDraft> tables;
+  final String? menu;
+
+  ServiceSlot copyWith({String? menu}) => ServiceSlot(
+    id: id,
+    startTime: startTime,
+    endTime: endTime,
+    capacity: capacity,
+    freeSeats: freeSeats,
+    tables: tables,
+    menu: menu ?? this.menu,
+  );
 
   bool get hasLayout => tables.isNotEmpty;
+
+  /// Employees can book until the slot starts (no 2-hour limit, unlike web bookings).
+  bool hasStartedAt(DateTime now) =>
+      !DateTime.parse(startTime.replaceFirst(' ', 'T')).isAfter(now);
 
   String get startLabel => startTime.substring(11, 16);
   String get endLabel => endTime.substring(11, 16);

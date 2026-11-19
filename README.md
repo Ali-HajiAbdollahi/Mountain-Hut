@@ -6,21 +6,21 @@ We chose GPLv3 because we do not want our code to be reused in proprietary produ
 
 ## Project Overview
 
-Mountain-Hut is a web application for managing reservations and services at a mountain hut. It provides functionality for hikers and hut employees, including account management, reservation creation and modification, availability checking, table allocation, and staff-assisted bookings.
+Mountain-Hut is a web application for managing reservations and services at a mountain hut. It provides functionality for hikers and hut employees, including account management, reservation creation, modification and cancellation, availability checking, table allocation, staff-assisted bookings, weekly schedules, meal menus, and the registration and monitoring of planned hikes.
 
 The application is composed of a Flutter web client and a Node.js backend. The backend exposes a REST API and uses SQLite for persistent data storage.
 
 ## Technologies
 
-| Component | Technology |
-|---|---|
-| Frontend | Flutter and Dart |
-| Backend | Node.js and Express |
-| Database | SQLite |
-| Backend testing | Vitest and Supertest |
-| Frontend testing | Flutter Test |
-| API communication | HTTP and JSON |
-| Session management | Express Session |
+| Component          | Technology           |
+| ------------------ | -------------------- |
+| Frontend           | Flutter and Dart     |
+| Backend            | Node.js and Express  |
+| Database           | SQLite               |
+| Backend testing    | Vitest and Supertest |
+| Frontend testing   | Flutter Test         |
+| API communication  | HTTP and JSON        |
+| Session management | Express Session      |
 
 The backend requires Node.js 24. The Flutter client requires a compatible Flutter SDK and Dart SDK 3.11.1 or later within the version range specified in `client/pubspec.yaml`.
 
@@ -151,6 +151,62 @@ http://localhost:5173
 
 The `API_BASE_URL` build-time variable specifies the backend API endpoint. The backend's `CLIENT_ORIGIN` configuration must correspond to the address used by the frontend.
 
+## Running with Docker (Release 1)
+
+The whole system (Node.js backend, Flutter web app and SQLite database) runs in a single container.
+
+- Docker image: [`nicolecaldarazzo/mountain-hut:release1`](https://hub.docker.com/r/nicolecaldarazzo/mountain-hut)
+- Source code: [github.com/Ali-HajiAbdollahi/Mountain-Hut](https://github.com/Ali-HajiAbdollahi/Mountain-Hut)
+
+### 1. Requirements
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS) or Docker Engine (Linux), installed and running ("Engine running" in Docker Desktop).
+- The file `secrets.env`, which contains the session secret (`SESSION_SECRET`).
+
+### 2. Start the system
+
+1. Extract `secrets.env` from `Team05-secrets.zip` into any folder.
+2. Open a terminal **in that folder.**
+3. Download and start the container:
+
+```bash
+docker pull nicolecaldarazzo/mountain-hut:release1
+docker run --name mountain-hut -p 3001:3001 -p 8025:8025 --env-file secrets.env -v mountainhut-data:/data nicolecaldarazzo/mountain-hut:release1
+```
+
+4. Wait for `API listening on port 3001`, then open **http://localhost:3001** in the browser.
+5. The emails sent by the system (booking confirmation, booking change, password reset) are collected by [Mailpit](https://mailpit.axllent.org/), included in the container: open **http://localhost:8025** to read them.
+
+If `secrets.env` is in another folder, pass its full path: `--env-file C:\path\to\secrets.env`.
+
+On the first start the database is created from `database/schema.sql` and `database/seed.sql`, with the test accounts listed in [Test Accounts and Sample Data](#test-accounts-and-sample-data) and three meal slots in the coming days: tomorrow lunch (12:00–13:00), tomorrow dinner (19:00–20:30) and lunch in three days. The data is kept in the Docker volume `mountainhut-data`.
+
+To use two accounts at the same time (e.g. Elena and Marco), use a normal window and a private/incognito window: in the same browser window, a new sign-in replaces the previous one.
+
+### 3. Stop, restart, reset
+
+| Action                         | Command                                                                                                          |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Stop                           | `Ctrl+C` in the terminal, or `docker stop mountain-hut`                                                      |
+| Start again (the data is kept) | `docker start -a mountain-hut`                                                                                 |
+| Start from a clean database    | `docker rm -f mountain-hut`, then `docker volume rm mountainhut-data`, then the `docker run` command again |
+
+### 4. Options
+
+- **Another port:** if port 3001 is busy, use e.g. `-p 8080:3001 -e CLIENT_ORIGIN=http://localhost:8080` and open `http://localhost:8080`. `CLIENT_ORIGIN` must match the address in the browser, otherwise sign-in is refused ("Origin not allowed").
+- **Emails:** by default the emails go to the Mailpit inbox inside the container (http://localhost:8025); they are not delivered to real mailboxes. To send real emails through another SMTP server, add to `secrets.env`: `START_MAILPIT=false`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`. To disable emails, add `MAIL_MODE=disabled`.
+
+### 5. Building the image
+
+From the repository root:
+
+```bash
+docker build -t nicolecaldarazzo/mountain-hut:release1 .
+docker push nicolecaldarazzo/mountain-hut:release1
+```
+
+The `Dockerfile` compiles the Flutter web app (`flutter build web --release --dart-define=API_BASE_URL=/api`) and serves it from the Node.js backend on the same port. On the first start, `server/scripts/start-docker-server.js` creates the database in the `/data` volume. The `.dockerignore` file keeps `.env` files, local databases, `node_modules` and build caches out of the image.
+
 ## Testing
 
 The project includes automated unit and integration tests for both the backend and the Flutter client, and end-to-end tests that run the client against the backend.
@@ -241,18 +297,44 @@ On Windows, the `bash` commands must be run from Git Bash. From PowerShell, use 
 
 If a Chrome run stops with `Timed out receiving message from renderer`, the browser failed to start: run the script again.
 
+### Test coverage
+
+Coverage is measured on the unit and integration tests together. The end-to-end tests run in the browser and are not included.
+
+**Backend** (from the `server` folder):
+
+```bash
+cd server
+npm ci
+npm run coverage
+```
+
+The summary (statements, branches, functions, lines) is printed at the end, for the whole server code except the tests, the scripts and `index.js`. A detailed report, line by line, is written to `server/coverage/index.html`. To measure only one kind of test, add the folder: `npm run coverage -- tests/unit` or `npm run coverage -- tests/integration`.
+
+**Frontend** (from the `client` folder):
+
+```bash
+cd client
+flutter test --coverage
+node -e "const t=require('fs').readFileSync('coverage/lcov.info','utf8');let f=0,h=0;for(const l of t.split('\n')){if(l.startsWith('LF:'))f+=+l.slice(3);if(l.startsWith('LH:'))h+=+l.slice(3)}console.log((100*h/f).toFixed(1)+'% ('+h+'/'+f+' lines)')"
+```
+
+`flutter test --coverage` writes `client/coverage/lcov.info`; the second command prints the line coverage (Flutter measures lines only). To measure only one kind of test, use `flutter test test/unit --coverage` or `flutter test test/integration --coverage`. The VS Code extension *Coverage Gutters* can show covered and uncovered lines from the same file.
+
+Coverage reports are generated locally and are not committed (`coverage/` is ignored by git).
+
 ## Test Accounts and Sample Data
 
 The development seed file, `database/seed.sql`, defines the following sample user profiles:
 
-| Email | Role | Account status |
-|---|---|---|
-| `elena@hut.it` | Employee | Password hash stored in the seed |
-| `marco@mail.it` | Hiker | Password hash stored in the seed |
-| `sara@mail.it` | Hiker | Password hash stored in the seed |
-| `luca@mail.it` | Hiker | Profile created by an employee; no password configured |
+| Email             | Password        | Role     | Account status                                         |
+| ----------------- | --------------- | -------- | ------------------------------------------------------ |
+| `elena@hut.it`  | `password123` | Employee | Can sign in (Staff Portal)                             |
+| `marco@mail.it` | `password123` | Hiker    | Can sign in                                            |
+| `sara@mail.it`  | `password123` | Hiker    | Can sign in                                            |
+| `luca@mail.it`  | —              | Hiker    | Profile created by an employee; no password configured |
 
-The seed file stores password hashes and salts rather than plaintext passwords. The corresponding login passwords are therefore not documented here.
+The seed file stores only password hashes and salts; the login password of the sample accounts is `password123`. These accounts are available in the development database (`database/init.sh`), in the end-to-end backend (`npm run start:e2e`) and in the Docker container.
 
 Luca's profile represents a hiker registered by an employee without an initial password. This profile cannot be used to log in until the account credentials are configured through the application's supported registration process.
 
@@ -276,14 +358,15 @@ The `core` directory contains functionality used across multiple features:
 
 The `features` directory separates the application into functional areas:
 
-| Feature | Responsibility |
-|---|---|
-| `account` | User account and profile pages |
-| `auth` | Registration, login, and authentication state |
-| `booking` | Reservation creation and booking-related interfaces |
-| `explore` | Exploration and introductory application pages |
-| `hiker_portal` | Hiker reservation overview and reservation management |
-| `staff_portal` | Employee dashboard, slot management, hiker lookup, and staff-assisted bookings |
+| Feature          | Responsibility                                                                 |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `account`      | User account and profile pages                                                 |
+| `auth`         | Registration, login, and authentication state                                  |
+| `booking`      | Reservation creation and booking-related interfaces                            |
+| `explore`      | Exploration and introductory application pages, meal times and menus           |
+| `hike_registration` | Registration of a planned hike by a hiker                                 |
+| `hiker_portal` | Hiker reservation overview and reservation management                          |
+| `staff_portal` | Employee dashboard, slot management, weekly schedule copy, menus, hiker lookup, staff-assisted bookings, and active hikes |
 
 Features that require data persistence or backend communication use separate data, domain, and presentation layers where applicable. This separation helps isolate user interface components from application logic and API communication.
 
@@ -291,37 +374,50 @@ Features that require data persistence or backend communication use separate dat
 
 The backend follows a layered architecture that separates HTTP routing, business logic, and database access.
 
-| Directory or file | Responsibility |
-|---|---|
-| `dao/` | Data Access Objects responsible for database queries and persistence |
-| `domain/` | Domain-level logic, validation, time handling, and table allocation |
-| `middleware/` | Request middleware, including authentication and error handling |
-| `routes/` | REST API endpoint definitions |
-| `services/` | Application and business logic |
-| `mail/` | Booking confirmation email content |
-| `tests/` | Automated unit and integration tests |
-| `db.js` | SQLite database initialization and connection management |
-| `app.js` | Express application configuration |
-| `index.js` | Backend application entry point |
-| `errors.js` | Application error definitions |
+| Directory or file | Responsibility                                                       |
+| ----------------- | -------------------------------------------------------------------- |
+| `dao/`          | Data Access Objects responsible for database queries and persistence |
+| `domain/`       | Domain-level logic, validation, time handling, and table allocation  |
+| `middleware/`   | Request middleware, including authentication and error handling      |
+| `routes/`       | REST API endpoint definitions                                        |
+| `services/`     | Application and business logic                                       |
+| `mail/`         | Email content: booking confirmation, booking change, password reset  |
+| `tests/`        | Automated unit and integration tests                                 |
+| `db.js`         | SQLite database initialization and connection management             |
+| `app.js`        | Express application configuration                                    |
+| `index.js`      | Backend application entry point                                      |
+| `errors.js`     | Application error definitions                                        |
 
 The backend is responsible for enforcing application rules, validating incoming requests, managing user sessions, coordinating reservation operations, and maintaining database consistency.
 
 ## Main Functionalities
 
-The implemented functionality is organized around the following seven user stories:
+The implemented functionality is organized around the following user stories.
 
-| ID | User story | Main functionality |
-|---|---|---|
-| MH-01 | Book a table | Allows hikers to create reservations, subject to booking rules, available capacity, and table allocation constraints. |
-| MH-02 | Define slot capacity | Allows employees to define service time slots and configure the tables and seating capacity available for each slot. |
-| MH-03 | Receive confirmation | Provides booking confirmation notifications and handles email delivery outcomes. |
-| MH-04 | Check availability | Allows users to check available capacity for a selected date, time slot, and party size. |
-| MH-05 | Specify party requirements | Allows hikers to provide dietary requirements, allergies, and additional information associated with a reservation. |
-| MH-06 | Change a booking | Allows hikers to modify eligible existing reservations, subject to ownership, time restrictions, and capacity constraints. |
-| MH-07 | Reserve for an hiker | Allows employees to search for registered hikers and create reservations on their behalf, including for hikers whose profiles are created during the process. |
+**Sprint 1**
 
-Each user story is covered by backend unit and integration tests, corresponding Flutter unit and integration test files, and an end-to-end test file.
+| ID    | User story                 | Main functionality                                                                                                                                                                                                                         |
+| ----- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| MH-01 | Book a table               | Allows hikers to create reservations, subject to booking rules, available capacity, and table allocation constraints.                                                                                                                      |
+| MH-02 | Define slot capacity       | Allows employees to define service time slots and configure the tables and seating capacity available for each slot. Slots start and end on the same day and cannot overlap; the table layout of another slot of the day can be reused. |
+| MH-03 | Receive confirmation       | Provides booking confirmation notifications and handles email delivery outcomes.                                                                                                                                                           |
+| MH-04 | Check availability         | Allows users to check available capacity for a selected date, time slot, and party size.                                                                                                                                                   |
+| MH-05 | Specify party requirements | Allows hikers to provide dietary requirements, allergies, and additional information associated with a reservation, each for a subset of the party.                                                                                       |
+| MH-06 | Change a booking           | Allows hikers to change the date, time, party size, or requirements of their reservations up to 48 hours before the meal. A party size change is treated as a new booking (tables assigned again), and every change is notified by email. |
+| MH-07 | Reserve for an hiker       | Allows employees to reserve for existing, new, or temporary hikers until the slot starts. New full profiles get a random password that must be changed at the first sign-in; passwords can be recovered by email (link valid 24 hours).  |
+
+**Sprint 2**
+
+| ID    | User story               | Main functionality                                                                                                                                                                                       |
+| ----- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MH-08 | Cancel a booking         | Allows hikers to cancel their reservations at any time; the seats are released and offered to other guests.                                                                                              |
+| MH-09 | Repeat a weekly schedule | Allows employees to copy all the slots and table layouts of a week into another week. A week that already has slots is completely replaced, after confirmation, unless it has reservations.             |
+| MH-10 | Define menus             | Allows employees to write the menu of each slot as free text with basic formatting (bold, italic, font size, item lists and sub-items), and to reuse and change menus of previous slots and days.      |
+| MH-20 | Register a hike          | Allows signed-in hikers to register a planned hike before departure: destination, route, intermediate passage points, departure time, and expected return time.                                          |
+| MH-11 | View meal details        | Allows every user, without signing in, to see the meal times of a day and the formatted menu of each slot.                                                                                              |
+| MH-21 | View active hikes        | Allows employees to see the hikers currently on a hike (departed and not yet returned), with destination, route, passage points, and expected return time; the list refreshes automatically.             |
+
+Each user story is covered by backend unit and integration tests, corresponding Flutter unit and integration test files, and end-to-end tests (MH-20 and MH-21 share one end-to-end test file, `mh20_mh21_hike_monitoring_test.dart`).
 
 ## Database
 
@@ -336,6 +432,9 @@ The main entities include:
 - Tables and their seating capacity.
 - Reservations and their table allocations.
 - Reservation requirements.
+- Slot menus.
+- Planned hikes and their intermediate passage points.
+- Password reset tokens (only their hash is stored).
 
 The database enforces relational constraints through primary keys, foreign keys, uniqueness constraints, and validation rules. Foreign-key enforcement must be enabled on every database connection.
 

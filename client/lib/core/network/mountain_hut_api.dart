@@ -175,6 +175,33 @@ class MountainHutApi {
   Future<Map<String, dynamic>> currentUser() =>
       _object('GET', ApiEndpoints.currentSession);
 
+  /// Changes the password of the signed-in user; the returned user has
+  /// `must_change_password` cleared.
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) => _object(
+    'PUT',
+    ApiEndpoints.currentPassword,
+    body: {'current_password': currentPassword, 'new_password': newPassword},
+  );
+
+  /// The server answers in the same way whether the email is registered or not.
+  Future<void> requestPasswordReset(String email) async {
+    await _request('POST', ApiEndpoints.passwordResets, body: {'email': email});
+  }
+
+  Future<void> confirmPasswordReset({
+    required String token,
+    required String newPassword,
+  }) async {
+    await _request(
+      'POST',
+      ApiEndpoints.passwordResetConfirm,
+      body: {'token': token, 'new_password': newPassword},
+    );
+  }
+
   Future<void> logout() async {
     await _request('DELETE', ApiEndpoints.currentSession);
     _sessionCookie = null;
@@ -182,6 +209,9 @@ class MountainHutApi {
 
   Future<List<Map<String, dynamic>>> listSlots(String date) =>
       _list(ApiEndpoints.timeslots, query: {'date': date});
+
+  Future<List<Map<String, dynamic>>> listActiveHikes() =>
+      _list(ApiEndpoints.activeHikes);
 
   Future<Map<String, dynamic>> getSlot(int id) =>
       _object('GET', ApiEndpoints.timeslot(id));
@@ -224,6 +254,32 @@ class MountainHutApi {
     );
   }
 
+  Future<Map<String, dynamic>> publishSlotMenu(int slotId, String menu) =>
+      _object('PUT', ApiEndpoints.slotMenu(slotId), body: {'menu': menu});
+
+  Future<List<Map<String, dynamic>>> recentMenus(String before) =>
+      _list('${ApiEndpoints.timeslots}/menus/recent', query: {'before': before});
+
+  Future<int> repeatWeek({
+    required String sourceWeek,
+    required String targetWeek,
+  }) async {
+    final response = await _object(
+      'POST',
+      ApiEndpoints.repeatWeek,
+      body: {'source_week': sourceWeek, 'target_week': targetWeek},
+    );
+    final slotIds = response['slotIds'];
+    if (slotIds is! List || slotIds.any((id) => id is! num)) {
+      throw const ApiException(
+        200,
+        'INVALID_RESPONSE',
+        'Expected replicated slot IDs.',
+      );
+    }
+    return slotIds.length;
+  }
+
   Future<Map<String, dynamic>> checkAvailability({
     required String date,
     required String time,
@@ -234,6 +290,20 @@ class MountainHutApi {
     query: {'date': date, 'time': time, 'partySize': partySize.toString()},
   );
 
+  /// The API accepts a requirement only as `{n_people?, description, allergy}`: `n_people` is the
+  /// number of people of the party concerned (1..party size) and is left out when not specified.
+  /// Any other key would be rejected with "Unexpected field".
+  static List<Map<String, dynamic>> requirementsPayload(
+    List<Map<String, dynamic>> requirements,
+  ) => [
+    for (final requirement in requirements)
+      {
+        'n_people': ?requirement['n_people'],
+        'description': requirement['description'],
+        'allergy': requirement['allergy'] == true,
+      },
+  ];
+
   Future<Map<String, dynamic>> book({
     required int slotId,
     required int people,
@@ -241,7 +311,11 @@ class MountainHutApi {
   }) => _object(
     'POST',
     ApiEndpoints.bookings,
-    body: {'tsID': slotId, 'n_people': people, 'requirements': requirements},
+    body: {
+      'tsID': slotId,
+      'n_people': people,
+      'requirements': requirementsPayload(requirements),
+    },
   );
 
   Future<List<Map<String, dynamic>>> myBookings() =>
@@ -258,7 +332,13 @@ class MountainHutApi {
   }) => _object(
     'PATCH',
     ApiEndpoints.booking(id),
-    body: {'tsID': ?slotId, 'n_people': ?people, 'requirements': ?requirements},
+    body: {
+      'tsID': ?slotId,
+      'n_people': ?people,
+      'requirements': ?(requirements == null
+          ? null
+          : requirementsPayload(requirements)),
+    },
   );
 
   Future<void> cancelBooking(int id) async {
@@ -290,8 +370,29 @@ class MountainHutApi {
         'hiker': hiker,
         'tsID': slotId,
         'n_people': people,
-        'requirements': requirements,
+        'requirements': requirementsPayload(requirements),
       });
+
+    Future<Map<String, dynamic>> registerHike(
+      Map<String, dynamic> hike,
+    ) async {
+      final response = await _object(
+        'POST',
+        ApiEndpoints.hikes,
+        body: hike,
+      );
+
+      if (response['hike'] is! Map<String, dynamic>) {
+        throw const ApiException(
+          200,
+          'INVALID_RESPONSE',
+          'Expected registered hike object.',
+        );
+      }
+
+      return response['hike'] as Map<String, dynamic>;
+    }
+
 
   void close() => _client.close();
 }

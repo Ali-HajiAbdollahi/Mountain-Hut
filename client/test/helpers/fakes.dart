@@ -1,4 +1,7 @@
 // Test doubles shared by the frontend tests: no backend and no network.
+import 'dart:async';
+
+import 'package:client/core/constants/hut_information.dart';
 import 'package:client/core/network/mountain_hut_api.dart';
 import 'package:client/features/auth/domain/repositories/auth_repository.dart';
 import 'package:client/features/booking/domain/entities/booking_allocation.dart';
@@ -29,6 +32,8 @@ class FakeApi extends Fake implements MountainHutApi {
   List<Map<String, dynamic>> bookings = [];
   ApiException? bookingsError;
   ApiException? updateError;
+  ApiException? cancelError;
+  Map<String, dynamic> updateNotification = {'status': 'accepted'};
 
   /// Slots per date ('YYYY-MM-DD'); when a date is missing, [slots] is used.
   Map<String, List<Map<String, dynamic>>> slotsByDate = {};
@@ -39,8 +44,55 @@ class FakeApi extends Fake implements MountainHutApi {
   ApiException? hikersError;
   Map<String, dynamic> staffBookingResponse = {'booking': {'bID': 12, 'reference': 'MH-12'}};
   ApiException? staffBookingError;
+  int repeatedSlots = 3;
+  ApiException? repeatWeekError;
+  List<Map<String, dynamic>> recentMenuRows = [];
+  ApiException? recentMenusError;
+  ApiException? publishMenuError;
+  Object? registerHikeError;
+  Completer<void>? registerHikeGate;
+  List<Map<String, dynamic>> activeHikes = [];
+  Object? activeHikesError;
+  Completer<void>? activeHikesGate;
 
   Iterable<Call> called(String method) => calls.where((c) => c.method == method);
+
+  @override
+  Future<int> repeatWeek({required String sourceWeek, required String targetWeek}) async {
+    calls.add(Call('repeatWeek', {'sourceWeek': sourceWeek, 'targetWeek': targetWeek}));
+    if (repeatWeekError != null) throw repeatWeekError!;
+    return repeatedSlots;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> recentMenus(String before) async {
+    calls.add(Call('recentMenus', {'before': before}));
+    if (recentMenusError != null) throw recentMenusError!;
+    return [...recentMenuRows];
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishSlotMenu(int slotId, String menu) async {
+    calls.add(Call('publishSlotMenu', {'slotId': slotId, 'menu': menu}));
+    if (publishMenuError != null) throw publishMenuError!;
+    return {'tsID': slotId, 'menu': menu};
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerHike(Map<String, dynamic> hike) async {
+    calls.add(Call('registerHike', {'hike': hike}));
+    if (registerHikeGate != null) await registerHikeGate!.future;
+    if (registerHikeError != null) throw registerHikeError!;
+    return {'hID': 1, ...hike, 'returned_at': null, 'waypoints': hike['waypoints'] ?? []};
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listActiveHikes() async {
+    calls.add(Call('listActiveHikes'));
+    if (activeHikesGate != null) await activeHikesGate!.future;
+    if (activeHikesError != null) throw activeHikesError!;
+    return [...activeHikes];
+  }
 
   @override
   Future<Map<String, dynamic>> currentUser() async {
@@ -145,7 +197,15 @@ class FakeApi extends Fake implements MountainHutApi {
     calls.add(Call('updateBooking',
         {'id': id, 'slotId': slotId, 'people': people, 'requirements': requirements}));
     if (updateError != null) throw updateError!;
-    return {'booking': {}};
+    return {'booking': {}, 'notification': updateNotification};
+  }
+
+  /// Like the backend: on success the booking disappears from [bookings].
+  @override
+  Future<void> cancelBooking(int id) async {
+    calls.add(Call('cancelBooking', {'id': id}));
+    if (cancelError != null) throw cancelError!;
+    bookings.removeWhere((b) => b['bID'] == id);
   }
 }
 
@@ -230,6 +290,8 @@ Future<void> pumpPage(WidgetTester tester, Widget page) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  await tester.runAsync(() => HutInformation.asset);
   await tester.pumpWidget(MaterialApp(home: page));
+  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   await tester.pumpAndSettle();
 }

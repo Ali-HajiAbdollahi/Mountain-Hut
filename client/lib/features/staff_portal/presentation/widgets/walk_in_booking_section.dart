@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../booking/presentation/widgets/dietary_requirements_section.dart';
+import '../../../booking/presentation/widgets/meal_service_slot_card.dart';
 import '../../domain/entities/service_slot.dart';
 import 'add_hiker_form.dart';
+import 'generated_password_dialog.dart';
 
 class WalkInBookingSection extends StatefulWidget {
   const WalkInBookingSection({required this.api, super.key});
@@ -82,8 +84,10 @@ class _WalkInBookingSectionState extends State<WalkInBookingSection> {
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime(now.year - 1),
+      initialDate: _date.isBefore(DateTime(now.year, now.month, now.day))
+          ? DateTime(now.year, now.month, now.day)
+          : _date,
+      firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 2, now.month, now.day),
     );
 
@@ -100,6 +104,26 @@ class _WalkInBookingSectionState extends State<WalkInBookingSection> {
     final requirement = _requirements.removeAt(index);
     requirement.dispose();
     setState(() {});
+  }
+
+  // Employees can book any slot that has not started yet, even one starting
+  // within the next 2 hours (the limit that applies to web bookings).
+  bool _isBookable(ServiceSlot slot) =>
+      slot.freeSeats >= 1 && !slot.hasStartedAt(DateTime.now());
+
+  String _slotDetail(ServiceSlot slot) {
+    if (slot.hasStartedAt(DateTime.now())) return 'Already started';
+    return slot.freeSeats < 1
+        ? 'No free seats'
+        : '${slot.freeSeats} free seats';
+  }
+
+  IconData _slotIcon(ServiceSlot slot) {
+    if (slot.freeSeats < 1) return Icons.block;
+    return slot.startLabel.startsWith('12:') ||
+            slot.startLabel.startsWith('13:')
+        ? Icons.lunch_dining
+        : Icons.room_service;
   }
 
   Future<void> _submit() async {
@@ -120,10 +144,7 @@ class _WalkInBookingSectionState extends State<WalkInBookingSection> {
         return;
       }
 
-      requirements.add({
-        'description': description,
-        'allergy': requirement.isAllergy,
-      });
+      requirements.add(requirement.toJson());
     }
 
     setState(() {
@@ -153,6 +174,18 @@ class _WalkInBookingSectionState extends State<WalkInBookingSection> {
           ),
         ),
       );
+
+      // Shown only now: the server never returns the password again.
+      final generatedPassword = result['generatedPassword'];
+      if (generatedPassword is String && hiker is RegisterHiker) {
+        setState(() => _submitting = false);
+        await showGeneratedPasswordDialog(
+          context,
+          email: hiker.email,
+          password: generatedPassword,
+        );
+        if (!mounted) return;
+      }
 
       _resetForm();
     } on ApiException catch (e) {
@@ -235,36 +268,18 @@ class _WalkInBookingSectionState extends State<WalkInBookingSection> {
           else if (_slots.isEmpty)
             const Text('No slots available for this date.')
           else
-            RadioGroup<int>(
-                groupValue: _selectedSlotId,
-                onChanged: (value) {
-                    if (_submitting) return;
-                    setState(() => _selectedSlotId = value);
-                },
-                child: Column(
-                children: _slots.map((slot) {
-                    return Card(
-                    child: slot.freeSeats < 1
-                        ? ListTile(
-                            leading: const Icon(Icons.block),
-                            title: Text(
-                                '${slot.startLabel} – ${slot.endLabel}',
-                            ),
-                            subtitle: const Text('No free seats'),
-                            )
-                        : RadioListTile<int>(
-                            value: slot.id,
-                            title: Text(
-                                '${slot.startLabel} – ${slot.endLabel}',
-                            ),
-                            subtitle: Text(
-                                '${slot.freeSeats} free seats',
-                            ),
-                            ),
-                    );
-                }).toList(),
-                ),
-            ),
+            for (final slot in _slots)
+              MealServiceSlotCard(
+                key: ValueKey('walk-in-slot-${slot.id}'),
+                label: '${slot.startLabel} – ${slot.endLabel}',
+                leadingIcon: _slotIcon(slot),
+                selected: _selectedSlotId == slot.id,
+                menuHtml: slot.menu,
+                detailLabel: _slotDetail(slot),
+                onTap: !_isBookable(slot) || _submitting
+                    ? null
+                    : () => setState(() => _selectedSlotId = slot.id),
+              ),
 
           const SizedBox(height: 20),
 
@@ -298,6 +313,7 @@ class _WalkInBookingSectionState extends State<WalkInBookingSection> {
 
           DietaryRequirementsSection(
             requirements: _requirements,
+            partySize: _people,
             onDelete: _removeRequirement,
             onAdd: () {
               setState(() {

@@ -110,9 +110,7 @@ export function createBookingChangeService(bookings, slots) {
 
         if (seatingChanged) {
           bookings.removeAssignments(id);
-
           const assignments = allocateTables(slots.tables(tsID), partySize);
-
           bookings.update(id, { tsID, n_people: partySize });
           bookings.assign(id, tsID, assignments);
         }

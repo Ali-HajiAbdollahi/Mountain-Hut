@@ -44,13 +44,11 @@ class RegisterHiker extends HikerChoice {
     required this.name,
     required this.email,
     required this.phone,
-    required this.password,
   });
 
   final String name;
   final String email;
   final String phone;
-  final String password;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -58,7 +56,6 @@ class RegisterHiker extends HikerChoice {
         'name': name,
         'email': email,
         'phone': phone,
-        'password': password,
       };
 }
 
@@ -386,14 +383,12 @@ class _FullRegistrationFormState extends State<_FullRegistrationForm> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -404,7 +399,6 @@ class _FullRegistrationFormState extends State<_FullRegistrationForm> {
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           phone: _phoneController.text.trim(),
-          password: _passwordController.text,
         ),
       );
     }
@@ -448,17 +442,26 @@ class _FullRegistrationFormState extends State<_FullRegistrationForm> {
             keyboard: TextInputType.phone,
             validator: (v) =>
                 Validators.required(v, fieldName: 'Mobile Phone'),
-            action: TextInputAction.next,
-          ),
-          _field(
-            label: 'Password',
-            controller: _passwordController,
-            hint: '••••••••',
-            icon: Icons.lock_outline,
-            obscure: true,
-            validator: Validators.password,
             action: TextInputAction.done,
             onSubmitted: (_) => _submit(),
+          ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            color: AppColors.infoBadge,
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline,
+                    size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'A random password is generated and shown after the '
+                    'booking. The hiker must change it at the first login.',
+                    style: textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppConstants.spacingMd),
           ElevatedButton.icon(
@@ -478,7 +481,6 @@ class _FullRegistrationFormState extends State<_FullRegistrationForm> {
     required IconData icon,
     String? Function(String?)? validator,
     TextInputType? keyboard,
-    bool obscure = false,
     TextInputAction action = TextInputAction.next,
     ValueChanged<String>? onSubmitted,
   }) {
@@ -507,7 +509,6 @@ class _FullRegistrationFormState extends State<_FullRegistrationForm> {
               prefixIcon: Icon(icon),
             ),
             keyboardType: keyboard,
-            obscureText: obscure,
             textInputAction: action,
             onFieldSubmitted: onSubmitted,
             validator: validator,

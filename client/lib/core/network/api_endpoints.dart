@@ -18,14 +18,21 @@ class ApiEndpoints {
   static const String users = '/users';
   static const String sessions = '/sessions';
   static const String currentSession = '/sessions/current';
+  static const String currentPassword = '/users/current/password';
+  static const String passwordResets = '/password-resets';
+  static const String passwordResetConfirm = '/password-resets/confirm';
   static const String timeslots = '/timeslots';
   static const String bookings = '/bookings';
   static const String availability = '/availability';
+  static const String repeatWeek = '$timeslots/repeat-week';
 
   static String timeslot(int id) => '$timeslots/$id';
   static String slotTables(int id) => '$timeslots/$id/tables';
+  static String slotMenu(int id) => '$timeslots/$id/menu';
   static String booking(int id) => '$bookings/$id';
   static String confirmation(int id) => '$bookings/$id/confirmation';
   static const String staffHikers = '/staff/hikers';
   static const String staffBookings = '/staff/bookings';
+  static const String hikes = '/hikes';
+  static const String activeHikes = '$hikes/active';
 }

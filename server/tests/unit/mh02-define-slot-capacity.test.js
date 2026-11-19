@@ -42,9 +42,14 @@ describe('dateOnly', () => {
 describe('validateInterval', () => {
   const now = Date.parse('2026-12-01T07:00:00Z');
 
-  it('accepts a future slot of any duration, also across midnight', () => {
+  it('accepts a future slot of any duration within the same day', () => {
     expect(() => validateInterval('2026-12-01 12:00', '2026-12-01 13:00', now)).not.toThrow();
-    expect(() => validateInterval('2026-12-01 23:30', '2026-12-02 00:15', now)).not.toThrow();
+    expect(() => validateInterval('2026-12-01 12:00', '2026-12-01 23:59', now)).not.toThrow();
+  });
+
+  it('rejects a slot that ends on a different day than it starts', () => {
+    expect(() => validateInterval('2026-12-01 23:30', '2026-12-02 00:15', now)).toThrow(ValidationError);
+    expect(() => validateInterval('2026-12-01 12:00', '2026-12-03 12:00', now)).toThrow(ValidationError);
   });
 
   it('rejects an end that is not after the start', () => {
@@ -67,7 +72,7 @@ describe('slotService', () => {
       atomic: action => action(),
       find: id => slots.get(id),
       tables: id => (tables.get(id) ?? []).map(t => ({ ...t, free_seats: t.seats })),
-      sameInterval: (a, b) => [...slots.values()].find(s => s.start_time === a && s.end_time === b),
+      overlaps: (a, b) => [...slots.values()].find(s => s.start_time < b && s.end_time > a),
       list: date => [...slots.values()].filter(s => s.start_time.startsWith(date)),
       insert: vi.fn((a, b) => {
         const tsID = nextId++;
@@ -118,6 +123,35 @@ describe('slotService', () => {
     const service = createSlotService(fakeDao());
     service.create({ ...lunch, tables: layout });
     expect(() => service.create({ ...lunch, tables: layout })).toThrow(ConflictError);
+  });
+
+  it('rejects a slot that overlaps an existing one', () => {
+    const service = createSlotService(fakeDao());
+    service.create({ ...lunch, tables: layout });
+    for (const [start_time, end_time] of [
+      ['2099-01-01 12:00', '2099-01-01 13:00'],
+      ['2099-01-01 12:30', '2099-01-01 13:30'],
+      ['2099-01-01 11:00', '2099-01-01 12:30'],
+      ['2099-01-01 12:15', '2099-01-01 12:45'],
+      ['2099-01-01 11:00', '2099-01-01 14:00'],
+    ]) {
+      expect(() => service.create({ start_time, end_time, tables: layout })).toThrow(ConflictError);
+    }
+  });
+
+  it('accepts contiguous slots', () => {
+    const service = createSlotService(fakeDao());
+    service.create({ ...lunch, tables: layout });
+    expect(() => service.create({
+      start_time: '2099-01-01 13:00', end_time: '2099-01-01 14:00', tables: layout })).not.toThrow();
+    expect(() => service.create({
+      start_time: '2099-01-01 11:00', end_time: '2099-01-01 12:00', tables: layout })).not.toThrow();
+  });
+
+  it('rejects a slot spanning two days', () => {
+    const service = createSlotService(fakeDao());
+    expect(() => service.create({
+      start_time: '2099-01-01 23:00', end_time: '2099-01-02 01:00', tables: layout })).toThrow(ValidationError);
   });
 
   it('defines tables only once for a slot without layout', () => {

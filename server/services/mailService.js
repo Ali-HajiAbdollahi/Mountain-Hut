@@ -17,11 +17,21 @@ export function createMailService(env=process.env) {
       auth:env.SMTP_USER ? {user:env.SMTP_USER,pass:env.SMTP_PASS} : undefined,
       connectionTimeout:5000,greetingTimeout:5000,socketTimeout:10000});
   }
+  // Hard limit for the whole send: nodemailer's own timeouts do not cover DNS lookups,
+  // and a hanging DNS server would otherwise keep the HTTP request open until the client gives up.
+  const sendTimeout=Number(env.MAIL_SEND_TIMEOUT_MS || 8000);
+  const withTimeout=promise=>{
+    let timer;
+    const timeout=new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(Object.assign(new Error('Mail send timed out'),{code:'ETIMEDOUT'})),sendTimeout);
+    });
+    return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
+  };
   return {
     async send(to,message) {
       if (!transport) return {status:'disabled'};
       try {
-        const result=await transport.sendMail({from:env.MAIL_FROM,to,...message});
+        const result=await withTimeout(transport.sendMail({from:env.MAIL_FROM,to,...message}));
         if (!result.accepted?.length || result.rejected?.length) return {status:'failed'};
         return {status:'accepted',messageId:result.messageId};
       } catch (error) {

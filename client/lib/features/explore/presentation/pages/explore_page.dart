@@ -7,7 +7,10 @@ import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/auth_context.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
+import '../../../auth/presentation/pages/change_password_screen.dart';
 import '../../../booking/domain/entities/booking_allocation.dart';
+import '../../../booking/presentation/widgets/meal_service_slot_card.dart';
+import '../widgets/hut_welcome_banner.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({
@@ -47,6 +50,16 @@ class _ExplorePageState extends State<ExplorePage> {
   Future<void> _restoreSession() async {
     try {
       final user = await widget.api.currentUser();
+      if (!mounted) return;
+      // A session that still carries a temporary password must change it first.
+      if (user['must_change_password'] == true) {
+        await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (_) =>
+                ChangePasswordScreen(authRepository: widget.authRepository),
+          ),
+        );
+      }
       if (mounted && user['role'] == 'hiker') {
         setState(() => _isHikerSignedIn = true);
       }
@@ -303,17 +316,8 @@ class _ExplorePageState extends State<ExplorePage> {
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
       appBar: AppBar(
-        leading: const Icon(
-          Icons.landscape_outlined,
-          color: AppColors.tertiary,
-        ),
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ELEVATION 2,140M', style: TextStyle(fontSize: 10)),
-            Text('Search', style: TextStyle(fontSize: 16)),
-          ],
-        ),
+        automaticallyImplyLeading: false,
+        title: const HutHomeHeader(),
       ),
       body: SafeArea(
         child: Align(
@@ -323,42 +327,20 @@ class _ExplorePageState extends State<ExplorePage> {
               maxWidth: AppConstants.exploreContentMaxWidth,
             ),
             child: ListView(
-              padding: const EdgeInsets.all(AppConstants.spacingMd),
+              padding: const EdgeInsets.fromLTRB(
+                AppConstants.spacingMd,
+                AppConstants.spacingMd,
+                AppConstants.spacingMd,
+                AppConstants.spacingXl,
+              ),
               children: [
-                const Text(
-                  'ELEVATION 2,140M',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                const HutWelcomeBanner(),
+                const SizedBox(height: AppConstants.spacingMd),
+                Text(
+                  'Check Table Availability',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                const SizedBox(height: AppConstants.spacingSm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Check Table Availability',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Material(
-                      color: AppColors.tertiary.withValues(alpha: 0.18),
-                      child: IconButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst),
-                        color: AppColors.tertiary,
-                        icon: const Icon(Icons.home_outlined),
-                        tooltip: 'Home',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppConstants.spacingSm),
-                const Text(
-                  'Welcome to Mountain Hut. Savor hot meals and panoramic ridge views. Plan your stop below.',
                 ),
                 const SizedBox(height: AppConstants.spacingMd),
                 _AvailabilityCard(
@@ -381,6 +363,16 @@ class _ExplorePageState extends State<ExplorePage> {
                   onCheckAvailability: _checkAvailability,
                   onRetrySlots: _loadSlots,
                 ),
+                if (_isHikerSignedIn) ...[
+                  const SizedBox(height: AppConstants.spacingMd),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      AppNavigation.hikeRegistration(api: widget.api),
+                    ),
+                    icon: const Icon(Icons.hiking, size: 18),
+                    label: const Text('Register a Planned Hike'),
+                  ),
+                ],
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppConstants.spacingMd),
                   _ErrorMessage(message: _errorMessage!),
@@ -578,10 +570,11 @@ class _AvailabilityCard extends StatelessWidget {
               const Text('No meal service slots are available for this date.')
             else
               for (var index = 0; index < slots.length; index++)
-                _SlotTile(
+                MealServiceSlotCard(
                   label: _slotLabel(slots[index]),
                   leadingIcon: _slotIcon(slots[index]),
                   selected: selectedSlot == index,
+                  menuHtml: slots[index]['menu'] as String?,
                   onTap: () => onSlotChanged(index),
                 ),
             const SizedBox(height: AppConstants.spacingSm),
@@ -680,61 +673,6 @@ class _AvailabilityCard extends StatelessWidget {
     return start.startsWith('12:') || start.startsWith('13:')
         ? Icons.lunch_dining
         : Icons.room_service;
-  }
-}
-
-class _SlotTile extends StatelessWidget {
-  const _SlotTile({
-    required this.label,
-    required this.leadingIcon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData leadingIcon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final foregroundColor = selected
-        ? AppColors.primary
-        : AppColors.textSecondary;
-
-    return Column(
-      children: [
-        Card(
-          elevation: selected ? 2 : 0,
-          shadowColor: selected
-              ? Colors.black.withValues(alpha: 0.08)
-              : Colors.transparent,
-          margin: EdgeInsets.zero,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          color: selected ? AppColors.surface : AppColors.lightSlot,
-          child: ListTile(
-            dense: true,
-            onTap: onTap,
-            leading: Icon(leadingIcon, size: 18, color: foregroundColor),
-            title: Text(
-              label,
-              style: TextStyle(
-                color: foregroundColor,
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            trailing: Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: foregroundColor,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppConstants.spacingSm),
-      ],
-    );
   }
 }
 

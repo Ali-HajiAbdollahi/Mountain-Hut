@@ -20,6 +20,7 @@ afterEach(() => {
 
 const reserve = (hiker, extra = {}) =>
   staff.post('/api/staff/bookings').send({ hiker, tsID: lunch, n_people: 3, ...extra });
+const newHiker = { mode: 'register', name: 'Luca Neri', email: 'luca@mail.it', phone: '3334440000' };
 
 describe('GET /api/staff/hikers', () => {
   it.each([['name', 'verdi'], ['phone', '99988'], ['email', 'sara@']])(
@@ -64,22 +65,85 @@ describe('POST /api/staff/bookings', () => {
     expect(ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE name = 'Rossi Group'").get().n).toBe(0);
   });
 
-  it('full details: creates a regular hiker profile that can then log in', async () => {
-    const res = await reserve({
-      mode: 'register', name: 'Luca Neri', email: 'luca@mail.it', phone: '3334440000', password: PASSWORD });
+  it('full details: creates a regular hiker profile with a generated password, returned in the response', async () => {
+    const res = await reserve(newHiker);
     expect(res.status).toBe(201);
     expect(res.body.booking.uID).toEqual(expect.any(Number));
+    expect(res.body.generatedPassword).toMatch(/^[A-Za-z0-9_-]{20,}$/);
 
-    const login = await request(ctx.app).post('/api/sessions').send({ email: 'luca@mail.it', password: PASSWORD });
+    const login = await request(ctx.app).post('/api/sessions')
+      .send({ email: 'luca@mail.it', password: res.body.generatedPassword });
     expect(login.status).toBe(200);
-    expect(login.body.role).toBe('hiker');
+    expect(login.body).toMatchObject({ role: 'hiker', must_change_password: true });
+  });
+
+  it('full details: the request cannot carry a password', async () => {
+    const res = await reserve({ ...newHiker, password: PASSWORD });
+    expect(res.status).toBe(400);
+    expect(ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE email = 'luca@mail.it'").get().n).toBe(0);
+  });
+
+  it('full details: name, email and phone are all required', async () => {
+    for (const field of ['name', 'email', 'phone']) {
+      const { [field]: _, ...incomplete } = newHiker;
+      expect((await reserve(incomplete)).status).toBe(400);
+    }
+  });
+
+  it('full details: the password is shown once and is not readable afterwards', async () => {
+    const { body } = await reserve(newHiker);
+    const plain = body.generatedPassword;
+
+    const row = ctx.db.prepare("SELECT password, salt, must_change_password FROM users WHERE email = 'luca@mail.it'").get();
+    expect(row.password).not.toBe(plain);
+    expect(row.must_change_password).toBe(1);
+
+    const luca = request.agent(ctx.app);
+    const login = await luca.post('/api/sessions').send({ email: 'luca@mail.it', password: plain });
+    const responses = [
+      login,
+      await luca.get('/api/sessions/current'),
+      await staff.get('/api/staff/hikers').query({ query: 'luca' }),
+      await luca.get('/api/bookings'),
+    ];
+    for (const res of responses) {
+      expect(JSON.stringify(res.body)).not.toContain(plain);
+      expect(JSON.stringify(res.body)).not.toContain(row.password);
+    }
+
+    // booking again for the same hiker returns no password
+    const again = await staff.post('/api/staff/bookings').send({
+      hiker: { mode: 'existing', uID: body.booking.uID },
+      tsID: addSlot(ctx, '2026-12-01 18:00', '2026-12-01 19:00', { 1: 4 }), n_people: 2 });
+    expect(again.status).toBe(201);
+    expect(again.body).not.toHaveProperty('generatedPassword');
   });
 
   it('full details: an email already registered is a conflict and no booking is made', async () => {
-    const res = await reserve({
-      mode: 'register', name: 'Sara 2', email: 'sara@mail.it', phone: '333', password: PASSWORD });
+    const res = await reserve({ mode: 'register', name: 'Sara 2', email: 'sara@mail.it', phone: '333' });
     expect(res.status).toBe(409);
     expect(ctx.db.prepare('SELECT COUNT(*) AS n FROM bookings').get().n).toBe(0);
+  });
+
+  describe('time of the slot', () => {
+    // "now" is 1 Dec 2026, 08:00 Europe/Rome
+    const book = start => staff.post('/api/staff/bookings').send({
+      hiker: { mode: 'temporary', name: 'Rossi' },
+      tsID: addSlot(ctx, start, start.replace(/ .*/, ' 23:00'), { 1: 4 }), n_people: 2 });
+
+    it('has no 2-hour limit: a slot starting in 30 minutes can still be booked', async () => {
+      expect((await book('2026-12-01 08:30')).status).toBe(201);
+    });
+
+    it('is accepted until the start of the slot', async () => {
+      expect((await book('2026-12-01 08:01')).status).toBe(201);
+    });
+
+    it('is refused when the slot has started', async () => {
+      expect((await book('2026-12-01 08:00')).status).toBe(409);
+      expect((await book('2026-12-01 07:30')).status).toBe(409);
+      expect(ctx.db.prepare('SELECT COUNT(*) AS n FROM bookings').get().n).toBe(0);
+    });
   });
 
   it('uses the same seat allocation and capacity rules as a web booking', async () => {
