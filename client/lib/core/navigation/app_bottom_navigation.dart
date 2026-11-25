@@ -28,11 +28,11 @@ class AppBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = switch (role) {
       AppNavigationRole.anonymous => [
-        _Item(Icons.search, 'Search', AppNavigationTab.explore, onExplore),
+        _Item(Icons.home_outlined, 'Home', AppNavigationTab.explore, onExplore),
         _Item(Icons.login, 'Log In', AppNavigationTab.account, onAccount),
       ],
       AppNavigationRole.hiker => [
-        _Item(Icons.search, 'Search', AppNavigationTab.explore, onExplore),
+        _Item(Icons.home_outlined, 'Home', AppNavigationTab.explore, onExplore),
         _Item(
           Icons.calendar_month_outlined,
           'My Bookings',
