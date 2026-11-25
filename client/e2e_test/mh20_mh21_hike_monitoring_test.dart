@@ -118,6 +118,7 @@ void main() {
   testWidgets('MH-20: a hiker registers a planned hike from Explore', (tester) async {
     await launchApp(tester);
     await signInFromNavigation(tester, marco.email);
+    await tap(tester, find.text('Hikes'));
     await tap(tester, find.text('Register a Planned Hike'));
     await waitFor(tester, find.text('Register a Hike'));
 

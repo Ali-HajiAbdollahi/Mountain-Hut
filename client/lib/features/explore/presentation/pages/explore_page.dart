@@ -39,6 +39,14 @@ class _ExplorePageState extends State<ExplorePage> {
   int _selectedSlot = 0;
   int _availabilityRequestVersion = 0;
   DateTime _selectedDate = DateTime.now();
+  _HomeTab _tab = _HomeTab.booking;
+
+  static const _tabPadding = EdgeInsets.fromLTRB(
+    AppConstants.spacingMd,
+    AppConstants.spacingMd,
+    AppConstants.spacingMd,
+    AppConstants.spacingXl,
+  );
 
   @override
   void initState() {
@@ -311,6 +319,153 @@ class _ExplorePageState extends State<ExplorePage> {
     return 'Tables ${tables.join(' & ')}';
   }
 
+  Widget _bookingTab(BuildContext context) {
+    return ListView(
+      padding: _tabPadding,
+      children: [
+        Text(
+          'Check Table Availability',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        _AvailabilityCard(
+          guests: _guests,
+          slots: _slots,
+          selectedSlot: _selectedSlot,
+          isLoadingSlots: _isLoadingSlots,
+          slotsErrorMessage: _slotsErrorMessage,
+          isCheckingAvailability: _isCheckingAvailability,
+          dateLabel: _displayDate(_selectedDate),
+          onDateSelected: _selectDate,
+          onGuestsChanged: (value) {
+            setState(() => _guests = value);
+            _invalidateAvailability();
+          },
+          onSlotChanged: (value) {
+            setState(() => _selectedSlot = value);
+            _invalidateAvailability();
+          },
+          onCheckAvailability: _checkAvailability,
+          onRetrySlots: _loadSlots,
+        ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: AppConstants.spacingMd),
+          _ErrorMessage(message: _errorMessage!),
+        ],
+        if (_hasCheckedAvailability) ...[
+          const SizedBox(height: AppConstants.spacingMd),
+          const _SearchResultsHeader(),
+          _AvailabilityResults(
+            result: _availability!,
+            slotDetails: _selectedSlotDetails,
+          ),
+          if (_availability!['available'] == true) ...[
+            const SizedBox(height: AppConstants.spacingMd),
+            FilledButton(
+              onPressed: () => _openAuth(AuthContext.tableReservation),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Proceed to Reservation'),
+                  SizedBox(width: AppConstants.spacingSm),
+                  Icon(Icons.arrow_forward),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppConstants.spacingSm),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_outline,
+                    size: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: AppConstants.spacingXs),
+                  Text(
+                    'Registered hiker account required to finalize booking',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _hikesTab(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return ListView(
+      padding: _tabPadding,
+      children: [
+        Card(
+          color: AppColors.surface,
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.hiking, color: AppColors.primary),
+                    const SizedBox(width: AppConstants.spacingSm),
+                    Expanded(
+                      child: Text(
+                        'Hike Registration',
+                        style: theme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppConstants.spacingSm),
+                Text(
+                  'Before setting off, register your destination, route and '
+                  'expected return time. If you are not back as planned, the '
+                  'hut staff will know where to look for you.',
+                  style: theme.bodyMedium?.copyWith(height: 1.5),
+                ),
+                const SizedBox(height: AppConstants.spacingMd),
+                if (_isHikerSignedIn)
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).push(AppNavigation.hikeRegistration(api: widget.api)),
+                    icon: const Icon(Icons.hiking, size: 18),
+                    label: const Text('Register a Planned Hike'),
+                  )
+                else ...[
+                  OutlinedButton.icon(
+                    onPressed: () => _openAuth(AuthContext.directAccess),
+                    icon: const Icon(Icons.login, size: 18),
+                    label: const Text('Sign in to register a hike'),
+                  ),
+                  const SizedBox(height: AppConstants.spacingSm),
+                  Center(
+                    child: Text(
+                      'A registered hiker account is required.',
+                      style: theme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -326,98 +481,34 @@ class _ExplorePageState extends State<ExplorePage> {
             constraints: const BoxConstraints(
               maxWidth: AppConstants.exploreContentMaxWidth,
             ),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppConstants.spacingMd,
-                AppConstants.spacingMd,
-                AppConstants.spacingMd,
-                AppConstants.spacingXl,
-              ),
+            child: Column(
               children: [
-                const HutWelcomeBanner(),
-                const SizedBox(height: AppConstants.spacingMd),
-                Text(
-                  'Check Table Availability',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppConstants.spacingMd,
+                    AppConstants.spacingMd,
+                    AppConstants.spacingMd,
+                    0,
+                  ),
+                  child: _HomeTabs(
+                    selected: _tab,
+                    onSelected: (tab) => setState(() => _tab = tab),
                   ),
                 ),
-                const SizedBox(height: AppConstants.spacingMd),
-                _AvailabilityCard(
-                  guests: _guests,
-                  slots: _slots,
-                  selectedSlot: _selectedSlot,
-                  isLoadingSlots: _isLoadingSlots,
-                  slotsErrorMessage: _slotsErrorMessage,
-                  isCheckingAvailability: _isCheckingAvailability,
-                  dateLabel: _displayDate(_selectedDate),
-                  onDateSelected: _selectDate,
-                  onGuestsChanged: (value) {
-                    setState(() => _guests = value);
-                    _invalidateAvailability();
-                  },
-                  onSlotChanged: (value) {
-                    setState(() => _selectedSlot = value);
-                    _invalidateAvailability();
-                  },
-                  onCheckAvailability: _checkAvailability,
-                  onRetrySlots: _loadSlots,
+                // Both tabs stay mounted, so each keeps its scroll position.
+                Expanded(
+                  child: IndexedStack(
+                    index: _tab.index,
+                    children: [
+                      ListView(
+                        padding: _tabPadding,
+                        children: const [HutWelcomeBanner()],
+                      ),
+                      _bookingTab(context),
+                      _hikesTab(context),
+                    ],
+                  ),
                 ),
-                if (_isHikerSignedIn) ...[
-                  const SizedBox(height: AppConstants.spacingMd),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      AppNavigation.hikeRegistration(api: widget.api),
-                    ),
-                    icon: const Icon(Icons.hiking, size: 18),
-                    label: const Text('Register a Planned Hike'),
-                  ),
-                ],
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: AppConstants.spacingMd),
-                  _ErrorMessage(message: _errorMessage!),
-                ],
-                if (_hasCheckedAvailability) ...[
-                  const SizedBox(height: AppConstants.spacingMd),
-                  const _SearchResultsHeader(),
-                  _AvailabilityResults(
-                    result: _availability!,
-                    slotDetails: _selectedSlotDetails,
-                  ),
-                  if (_availability!['available'] == true) ...[
-                    const SizedBox(height: AppConstants.spacingMd),
-                    FilledButton(
-                      onPressed: () => _openAuth(AuthContext.tableReservation),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Proceed to Reservation'),
-                          SizedBox(width: AppConstants.spacingSm),
-                          Icon(Icons.arrow_forward),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppConstants.spacingSm),
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.lock_outline,
-                            size: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: AppConstants.spacingXs),
-                          Text(
-                            'Registered hiker account required to finalize booking',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
               ],
             ),
           ),
@@ -514,14 +605,6 @@ class _AvailabilityCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _SectionLabel(icon: Icons.search, text: 'FIND A TABLE'),
-                Text('Public Access', style: TextStyle(fontSize: 11)),
-              ],
-            ),
-            const SizedBox(height: AppConstants.spacingMd),
             const _SectionLabel(icon: Icons.calendar_today, text: 'Date'),
             const SizedBox(height: AppConstants.spacingSm),
             InkWell(
@@ -1053,6 +1136,107 @@ class _SectionLabel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The sections of the home page.
+enum _HomeTab { hut, booking, hikes }
+
+/// Switches between the hut presentation, the table search and the hike
+/// registration, with the same look as the Staff Portal tabs.
+class _HomeTabs extends StatelessWidget {
+  const _HomeTabs({required this.selected, required this.onSelected});
+
+  final _HomeTab selected;
+  final ValueChanged<_HomeTab> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingXs),
+      color: AppColors.background,
+      child: Row(
+        children: [
+          Expanded(
+            child: _HomeTabButton(
+              icon: Icons.cabin,
+              label: 'The Hut',
+              selected: selected == _HomeTab.hut,
+              onTap: () => onSelected(_HomeTab.hut),
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingXs),
+          Expanded(
+            child: _HomeTabButton(
+              icon: Icons.table_restaurant,
+              label: 'Book a Table',
+              selected: selected == _HomeTab.booking,
+              onTap: () => onSelected(_HomeTab.booking),
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingXs),
+          Expanded(
+            child: _HomeTabButton(
+              icon: Icons.hiking,
+              label: 'Hikes',
+              selected: selected == _HomeTab.hikes,
+              onTap: () => onSelected(_HomeTab.hikes),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTabButton extends StatelessWidget {
+  const _HomeTabButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.white : AppColors.textSecondary;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: 12,
+            horizontal: AppConstants.spacingSm,
+          ),
+          color: selected ? AppColors.primary : Colors.transparent,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
