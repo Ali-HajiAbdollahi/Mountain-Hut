@@ -10,6 +10,7 @@ import '../../../auth/domain/repositories/auth_repository.dart';
 import '../../../auth/presentation/pages/change_password_screen.dart';
 import '../../../booking/domain/entities/booking_allocation.dart';
 import '../../../booking/presentation/widgets/meal_service_slot_card.dart';
+import '../../../hike_registration/presentation/widgets/my_hikes_section.dart';
 import '../widgets/hut_welcome_banner.dart';
 
 class ExplorePage extends StatefulWidget {
@@ -462,6 +463,11 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ),
         ),
+        // Hikes are kept apart from the table bookings (MH-153).
+        if (_isHikerSignedIn) ...[
+          const SizedBox(height: AppConstants.spacingMd),
+          MyHikesSection(api: widget.api),
+        ],
       ],
     );
   }

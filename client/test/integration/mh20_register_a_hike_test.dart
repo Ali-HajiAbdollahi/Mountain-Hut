@@ -64,6 +64,7 @@ void main() {
       expect(find.text(_button), findsNothing);
       await tap(tester, find.text(_hikesTab));
       expect(find.text(_button), findsOneWidget);
+      expect(find.text('My Hikes'), findsOneWidget);
     });
 
     testWidgets('a signed-in hiker sees "Register a Planned Hike" and it opens the form', (tester) async {
@@ -82,6 +83,7 @@ void main() {
       await tap(tester, find.text(_hikesTab));
       expect(find.text(_button), findsNothing);
       expect(find.text('Sign in to register a hike'), findsOneWidget);
+      expect(find.text('My Hikes'), findsNothing);
     });
 
     testWidgets('an employee does not see the button', (tester) async {

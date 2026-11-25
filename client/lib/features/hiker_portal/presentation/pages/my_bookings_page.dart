@@ -10,7 +10,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../widgets/cancel_booking_modal.dart';
 import '../widgets/modify_reservation_modal.dart';
-import '../../../hike_registration/presentation/widgets/my_hikes_section.dart';
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({required this.api, this.authRepository, super.key});
@@ -185,18 +184,6 @@ class _MyBookingsPageState extends State<MyBookingsPage>
                 : ListView(
                     padding: const EdgeInsets.all(AppConstants.spacingMd),
                     children: [
-                      Text(
-                        'My Reservations',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Manage your upcoming mountain hut dining bookings.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: AppConstants.spacingMd),
                       const _PolicyNotice(),
                       const SizedBox(height: AppConstants.spacingMd),
                       if (_bookings.isEmpty)
@@ -214,8 +201,6 @@ class _MyBookingsPageState extends State<MyBookingsPage>
                               onCancel: () => _cancel(booking),
                             ),
                           ),
-                      const SizedBox(height: AppConstants.spacingLg),
-                      MyHikesSection(api: widget.api),
                     ],
                   ),
           ),
@@ -347,7 +332,7 @@ class _BookingCard extends StatelessWidget {
                   'REF  $_reference',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
-                _StatusBadge(modifiable: modifiable),
+                const _StatusBadge(),
               ],
             ),
             const SizedBox(height: AppConstants.spacingMd),
@@ -397,15 +382,19 @@ class _BookingCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_calendar_outlined),
                 label: const Text('EDIT / CHANGE BOOKING'),
               ),
-            ] else ...[
-              const _LockedWarningBox(),
-              const SizedBox(height: AppConstants.spacingSm),
-              FilledButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.lock_outline),
-                label: const Text('MODIFICATION LOCKED'),
+            ] else
+              // The 48-hour rule is explained on hover (or tap) instead of
+              // with extra labels on the card.
+              Tooltip(
+                message:
+                    'Bookings can be changed up to 48 hours before the slot.',
+                triggerMode: TooltipTriggerMode.tap,
+                child: FilledButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.lock_outline),
+                  label: const Text('MODIFICATION LOCKED'),
+                ),
               ),
-            ],
             if (canCancel) ...[
               const SizedBox(height: AppConstants.spacingSm),
               OutlinedButton.icon(
@@ -470,44 +459,18 @@ String _modifiableUntil(Object? value) {
       '${until.minute.toString().padLeft(2, '0')}';
 }
 
-class _LockedWarningBox extends StatelessWidget {
-  const _LockedWarningBox();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.errorSurface,
-      padding: const EdgeInsets.all(AppConstants.spacingSm),
-      child: const Row(
-        children: [
-          Icon(Icons.lock_person_outlined, color: AppColors.danger, size: 18),
-          SizedBox(width: AppConstants.spacingSm),
-          Expanded(
-            child: Text(
-              'Editing is locked: Changes must be made at least 48 hours in advance.',
-              style: TextStyle(fontSize: 11, color: AppColors.danger),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.modifiable});
-
-  final bool modifiable;
+  const _StatusBadge();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: modifiable ? AppColors.successBadge : AppColors.lightControl,
+      color: AppColors.successBadge,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Text(
-        modifiable ? '● Confirmed' : '🔒 Editing locked',
+      child: const Text(
+        '● Confirmed',
         style: TextStyle(
-          color: modifiable ? AppColors.tertiary : AppColors.textSecondary,
+          color: AppColors.tertiary,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),

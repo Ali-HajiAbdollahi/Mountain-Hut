@@ -80,6 +80,22 @@ void main() {
       expect(find.text('EDIT / CHANGE BOOKING'), findsNothing);
     });
 
+    testWidgets('a locked booking explains the 48-hour rule in a tooltip, without extra labels', (tester) async {
+      api.bookings = [bookingJson(start: tomorrow)];
+      await open(tester);
+      expect(find.byTooltip('Bookings can be changed up to 48 hours before the slot.'), findsOneWidget);
+      expect(find.textContaining('Editing is locked'), findsNothing);
+      expect(find.textContaining('Editing locked'), findsNothing);
+      expect(find.text('● Confirmed'), findsOneWidget);
+    });
+
+    testWidgets('only shows table bookings, under the same name as the navigation button', (tester) async {
+      await open(tester);
+      expect(find.text('My Bookings'), findsWidgets);
+      expect(find.text('My Reservations'), findsNothing);
+      expect(find.text('My Hikes'), findsNothing);
+    });
+
     testWidgets('says when there are no bookings', (tester) async {
       api.bookings = [];
       await open(tester);
