@@ -14,6 +14,7 @@ class AccountPage extends StatefulWidget {
     this.onExplore,
     this.onBookings,
     this.onStaffPortal,
+    this.onActiveHikes,
     this.onLogout,
     super.key,
   });
@@ -23,6 +24,7 @@ class AccountPage extends StatefulWidget {
   final VoidCallback? onExplore;
   final VoidCallback? onBookings;
   final VoidCallback? onStaffPortal;
+  final VoidCallback? onActiveHikes;
   final VoidCallback? onLogout;
 
   @override
@@ -147,6 +149,7 @@ class _AccountPageState extends State<AccountPage> {
         onExplore: widget.onExplore,
         onBookings: widget.onBookings,
         onStaffPortal: widget.onStaffPortal,
+        onActiveHikes: widget.onActiveHikes,
       ),
     );
   }

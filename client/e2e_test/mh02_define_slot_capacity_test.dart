@@ -20,7 +20,7 @@ void main() {
   Future<void> openStaffPortalOn(WidgetTester tester, DateTime target) async {
     await launchApp(tester);
     await signInFromNavigation(tester, staffEmail);
-    await tap(tester, find.text('Staff Portal'));
+    await tap(tester, find.text('Dining'));
     await waitFor(tester, find.text('SERVICE SLOTS'));
     await tap(tester, find.text('Change'));
     await typeInDatePicker(tester, target);
@@ -109,6 +109,6 @@ void main() {
     await signInFromNavigation(tester, hiker.email);
     await waitFor(tester, find.text('My Bookings'));
 
-    expect(find.text('Staff Portal'), findsNothing);
+    expect(find.text('Dining'), findsNothing);
   });
 }

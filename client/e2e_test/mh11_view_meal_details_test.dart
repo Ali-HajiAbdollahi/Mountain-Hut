@@ -88,11 +88,12 @@ void main() {
     // the employee writes and publishes the menu (the only slot of the day is selected)
     await launchApp(tester);
     await signInFromNavigation(tester, staffEmail);
-    await tap(tester, find.text('Staff Portal'));
+    await tap(tester, find.text('Dining'));
     await waitFor(tester, find.text('SERVICE SLOTS'));
     await tap(tester, find.text('Change'));
     await typeInDatePicker(tester, other);
     await waitUntilGone(tester, find.byType(CircularProgressIndicator));
+    await tap(tester, find.byKey(const ValueKey('slot-tab-menu')));
     await type(tester, find.byKey(const ValueKey('slot-menu-editor')), 'Canederli\nStrudel');
     await tap(tester, find.text('SAVE & PUBLISH MENU'));
     await waitFor(tester, find.text('Menu published successfully.'));

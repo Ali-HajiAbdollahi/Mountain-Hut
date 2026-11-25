@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 
 enum AppNavigationRole { anonymous, hiker, employee }
 
-enum AppNavigationTab { explore, bookings, account, staffPortal }
+enum AppNavigationTab { explore, bookings, account, staffPortal, activeHikes }
 
 class AppBottomNavigation extends StatelessWidget {
   const AppBottomNavigation({
@@ -14,6 +14,7 @@ class AppBottomNavigation extends StatelessWidget {
     this.onBookings,
     this.onAccount,
     this.onStaffPortal,
+    this.onActiveHikes,
     super.key,
   });
 
@@ -23,6 +24,7 @@ class AppBottomNavigation extends StatelessWidget {
   final VoidCallback? onBookings;
   final VoidCallback? onAccount;
   final VoidCallback? onStaffPortal;
+  final VoidCallback? onActiveHikes;
 
   @override
   Widget build(BuildContext context) {
@@ -46,12 +48,19 @@ class AppBottomNavigation extends StatelessWidget {
           onAccount,
         ),
       ],
+      // Employees: dining (slots, tables, menus, bookings), hikes, account.
       AppNavigationRole.employee => [
         _Item(
-          Icons.shield_outlined,
-          'Staff Portal',
+          Icons.restaurant,
+          'Dining',
           AppNavigationTab.staffPortal,
           onStaffPortal,
+        ),
+        _Item(
+          Icons.hiking,
+          'Active Hikes',
+          AppNavigationTab.activeHikes,
+          onActiveHikes,
         ),
         _Item(
           Icons.person_outline,

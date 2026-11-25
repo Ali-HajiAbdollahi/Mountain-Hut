@@ -47,11 +47,12 @@ void main() {
   Future<void> openStaffPortalOn(WidgetTester tester, DateTime target) async {
     await launchApp(tester);
     await signInFromNavigation(tester, staffEmail);
-    await tap(tester, find.text('Staff Portal'));
+    await tap(tester, find.text('Dining'));
     await waitFor(tester, find.text('SERVICE SLOTS'));
     await tap(tester, find.text('Change'));
     await typeInDatePicker(tester, target);
     await waitUntilGone(tester, find.byType(CircularProgressIndicator));
+    await tap(tester, find.byKey(const ValueKey('slot-tab-menu')));
     await waitFor(tester, find.text('SLOT MENU CONFIGURATION'));
   }
 

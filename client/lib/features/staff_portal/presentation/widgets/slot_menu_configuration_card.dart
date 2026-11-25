@@ -12,6 +12,7 @@ class SlotMenuConfigurationCard extends StatefulWidget {
     required this.slot,
     this.reusableSlots = const [],
     required this.onMenuPublished,
+    this.onDirtyChanged,
     super.key,
   });
 
@@ -19,6 +20,10 @@ class SlotMenuConfigurationCard extends StatefulWidget {
   final ServiceSlot? slot;
   final List<ServiceSlot> reusableSlots;
   final void Function(int slotId, String menu) onMenuPublished;
+
+  /// Called when the editor starts or stops differing from the published menu
+  /// of the slot, so the parent can warn before the changes are lost.
+  final ValueChanged<bool>? onDirtyChanged;
 
   @override
   State<SlotMenuConfigurationCard> createState() =>
@@ -38,6 +43,11 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
   bool _historyFailed = false;
   int _historyRequest = 0;
 
+  /// The editor content that matches the published menu of the slot.
+  String _publishedHtml = '';
+  bool _dirty = false;
+  bool _loadingSlotMenu = false;
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +55,7 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
     _menuController
       ..loadHtml(widget.slot?.menu ?? '')
       ..addListener(_onEditorChanged);
+    _publishedHtml = _menuController.toHtml();
   }
 
   @override
@@ -56,10 +67,22 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
     if (slotChanged || menuChanged) {
       final menu = widget.slot?.menu ?? '';
       if (slotChanged || menu != _menuController.toHtml()) {
+        _loadingSlotMenu = true;
         _menuController.loadHtml(menu);
+        _loadingSlotMenu = false;
       }
+      _publishedHtml = _menuController.toHtml();
       _sourceSlotId = null;
+      _updateDirty();
     }
+  }
+
+  void _updateDirty() {
+    final dirty =
+        widget.slot != null && _menuController.toHtml() != _publishedHtml;
+    if (dirty == _dirty) return;
+    _dirty = dirty;
+    widget.onDirtyChanged?.call(dirty);
   }
 
   @override
@@ -73,6 +96,7 @@ class _SlotMenuConfigurationCardState extends State<SlotMenuConfigurationCard> {
 
   void _onEditorChanged() {
     if (mounted) setState(() {});
+    if (!_loadingSlotMenu) _updateDirty();
   }
 
   Future<void> _loadHistory() async {

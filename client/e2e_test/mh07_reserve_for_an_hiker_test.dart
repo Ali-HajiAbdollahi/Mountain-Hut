@@ -27,7 +27,7 @@ void main() {
   Future<void> openWalkInTab(WidgetTester tester) async {
     await launchApp(tester);
     await signInFromNavigation(tester, staffEmail);
-    await tap(tester, find.text('Staff Portal'));
+    await tap(tester, find.text('Dining'));
     await tap(tester, find.text('Phone / Walk-in Booking'));
     await waitFor(tester, find.text('QUICK HIKER LOOKUP'));
   }

@@ -210,6 +210,13 @@ class _ExplorePageState extends State<ExplorePage> {
                     api: widget.api,
                   ),
                 ),
+            onActiveHikes: () =>
+                AppNavigation.navigatorKey.currentState?.pushReplacement(
+                  AppNavigation.activeHikes(
+                    authRepository: widget.authRepository,
+                    api: widget.api,
+                  ),
+                ),
             onExplore: () =>
                 AppNavigation.navigatorKey.currentState?.pushReplacement(
                   AppNavigation.explore(
@@ -1150,7 +1157,7 @@ class _SectionLabel extends StatelessWidget {
 enum _HomeTab { hut, booking, hikes }
 
 /// Switches between the hut presentation, the table search and the hike
-/// registration, with the same look as the Staff Portal tabs.
+/// registration, with the same look as the tabs of the staff Dining area.
 class _HomeTabs extends StatelessWidget {
   const _HomeTabs({required this.selected, required this.onSelected});
 

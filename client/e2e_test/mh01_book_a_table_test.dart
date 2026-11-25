@@ -103,7 +103,7 @@ void main() {
     await checkAndProceed(tester, day, 6);
     await signIn(tester, staffEmail, continueBooking: true);
 
-    await waitFor(tester, find.text('Staff Portal'));
+    await waitFor(tester, find.text('Dining'));
     expect(find.text('CONFIRM RESERVATION'), findsNothing);
   });
 }

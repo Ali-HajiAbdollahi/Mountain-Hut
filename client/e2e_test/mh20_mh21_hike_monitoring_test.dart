@@ -96,7 +96,7 @@ void main() {
   Future<void> openActiveHikes(WidgetTester tester) async {
     await launchApp(tester);
     await signInFromNavigation(tester, staffEmail);
-    await tap(tester, find.text('Staff Portal'));
+    await tap(tester, find.text('Dining'));
     await tap(tester, find.text('Active Hikes'));
     await waitUntilGone(tester, find.byType(CircularProgressIndicator));
   }
