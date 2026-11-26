@@ -4,9 +4,9 @@ import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'slot_capacity_section.dart';
 import 'walk_in_booking_section.dart';
-import 'active_hikes_section.dart';
 
-enum _StaffTab { capacity, booking, hikes }
+/// The Dining area of the staff; active hikes have their own page.
+enum _StaffTab { capacity, booking }
 
 class StaffPortalBody extends StatefulWidget {
   const StaffPortalBody({required this.api, super.key});
@@ -33,8 +33,8 @@ class _StaffPortalBodyState extends State<StaffPortalBody> {
               children: [
                 Expanded(
                   child: _TabButton(
-                    icon: Icons.grid_view,
-                    label: 'Define Slot Capacity',
+                    icon: Icons.event_note,
+                    label: 'Planning',
                     selected: _tab == _StaffTab.capacity,
                     onTap: () => setState(() => _tab = _StaffTab.capacity),
                   ),
@@ -48,15 +48,6 @@ class _StaffPortalBodyState extends State<StaffPortalBody> {
                     onTap: () => setState(() => _tab = _StaffTab.booking),
                   ),
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: _TabButton(
-                    icon: Icons.hiking,
-                    label: 'Active Hikes',
-                    selected: _tab == _StaffTab.hikes,
-                    onTap: () => setState(() => _tab = _StaffTab.hikes),
-                  ),
-                ),
               ],
             ),
           ),
@@ -67,7 +58,6 @@ class _StaffPortalBodyState extends State<StaffPortalBody> {
             children: [
               SlotCapacitySection(api: widget.api),
               WalkInBookingSection(api: widget.api),
-              ActiveHikesSection(api: widget.api),
             ],
           ),
         ),

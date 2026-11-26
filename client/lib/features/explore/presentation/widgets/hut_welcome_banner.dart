@@ -59,17 +59,11 @@ class HutHomeHeader extends StatelessWidget {
   }
 }
 
-enum _HutTab { location, directions, nearby }
-
-class HutWelcomeBanner extends StatefulWidget {
+/// Descriptive presentation of the hut on the home page: name, key facts,
+/// description and amenities, with location, routes and nearby spots
+/// available as collapsible details.
+class HutWelcomeBanner extends StatelessWidget {
   const HutWelcomeBanner({super.key});
-
-  @override
-  State<HutWelcomeBanner> createState() => _HutWelcomeBannerState();
-}
-
-class _HutWelcomeBannerState extends State<HutWelcomeBanner> {
-  _HutTab _selectedTab = _HutTab.location;
 
   @override
   Widget build(BuildContext context) {
@@ -88,344 +82,195 @@ class _HutWelcomeBannerState extends State<HutWelcomeBanner> {
         }
 
         final theme = Theme.of(context).textTheme;
-        return Container(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          decoration: BoxDecoration(
-            color: AppColors.infoSurface,
-            border: Border.all(color: AppColors.lightBorder),
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingSm,
-                  vertical: AppConstants.spacingXs,
+        final secondary = theme.bodySmall?.copyWith(
+          color: AppColors.textSecondary,
+        );
+        return Card(
+          color: AppColors.surface,
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  info.name,
+                  style: theme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.successBadge,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: AppConstants.spacingXs),
+                Wrap(
+                  spacing: AppConstants.spacingMd,
+                  runSpacing: AppConstants.spacingXs,
                   children: [
-                    const Icon(
-                      Icons.terrain,
-                      size: AppConstants.spacingMd,
-                      color: AppColors.tertiary,
-                    ),
-                    const SizedBox(width: AppConstants.spacingXs),
-                    Text(
-                      info.elevation.toUpperCase(),
-                      style: theme.labelSmall?.copyWith(
-                        color: AppColors.tertiary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    _HutFact(icon: Icons.terrain, text: info.elevation),
+                    _HutFact(
+                      icon: Icons.location_on_outlined,
+                      text: info.locationName,
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              Text(info.name, style: theme.titleMedium),
-              const SizedBox(height: AppConstants.spacingSm),
-              Text(
-                info.description,
-                style: theme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
+                const SizedBox(height: AppConstants.spacingMd),
+                Text(
+                  info.description,
+                  style: theme.bodyMedium?.copyWith(height: 1.5),
                 ),
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Wrap(
-                spacing: AppConstants.spacingSm,
-                runSpacing: AppConstants.spacingSm,
-                children: [
-                  for (final amenity in info.amenities)
-                    _AmenityBadge(amenity: amenity),
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Container(
-                padding: const EdgeInsets.all(AppConstants.spacingXs),
-                decoration: BoxDecoration(
-                  color: AppColors.lightControl,
-                  border: Border.all(color: AppColors.lightBorder),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: Row(
+                const SizedBox(height: AppConstants.spacingMd),
+                Wrap(
+                  spacing: AppConstants.spacingMd,
+                  runSpacing: AppConstants.spacingXs,
                   children: [
-                    _tab(
-                      _HutTab.location,
-                      Icons.location_on_outlined,
-                      info.locationLabel,
-                    ),
-                    const SizedBox(width: AppConstants.spacingXs),
-                    _tab(
-                      _HutTab.directions,
-                      Icons.hiking,
-                      info.directionsLabel,
-                    ),
-                    const SizedBox(width: AppConstants.spacingXs),
-                    _tab(
-                      _HutTab.nearby,
-                      Icons.landscape_outlined,
-                      info.nearbyLabel,
-                    ),
+                    for (final amenity in info.amenities)
+                      _HutFact(
+                        icon: _amenityIcon(amenity.type),
+                        text: amenity.label,
+                        iconColor: AppColors.primary,
+                        textColor: AppColors.text,
+                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              Container(
-                padding: const EdgeInsets.all(AppConstants.spacingMd),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border.all(color: AppColors.lightBorder),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                const SizedBox(height: AppConstants.spacingSm),
+                const Divider(),
+                _HutDetails(
+                  icon: Icons.map_outlined,
+                  title: info.locationLabel,
+                  children: [
+                    Text(info.locationDescription, style: secondary),
+                    const SizedBox(height: AppConstants.spacingXs),
+                    Text(info.coordinates, style: secondary),
+                  ],
                 ),
-                child: switch (_selectedTab) {
-                  _HutTab.location => Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.navigation_outlined,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: AppConstants.spacingSm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(info.locationName, style: theme.labelLarge),
-                            const SizedBox(height: AppConstants.spacingXs),
-                            Text(
-                              info.locationDescription,
-                              style: theme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: AppConstants.spacingSm),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.pin_drop_outlined,
-                                  size: AppConstants.spacingMd,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: AppConstants.spacingXs),
-                                Expanded(
-                                  child: Text(
-                                    info.coordinates,
-                                    style: theme.labelSmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  _HutTab.directions => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final trail in info.trails) ...[
-                        _PlaceTile(place: trail),
-                        if (trail != info.trails.last)
-                          const SizedBox(height: AppConstants.spacingSm),
-                      ],
-                    ],
-                  ),
-                  _HutTab.nearby => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (
-                        var index = 0;
-                        index < info.nearby.length;
-                        index++
-                      ) ...[
-                        _PlaceTile(
-                          place: info.nearby[index],
-                          markerColor: index.isOdd
-                              ? AppColors.tertiary
-                              : AppColors.primary,
-                        ),
-                        if (index < info.nearby.length - 1)
-                          const SizedBox(height: AppConstants.spacingSm),
-                      ],
-                    ],
-                  ),
-                },
-              ),
-            ],
+                _HutDetails(
+                  icon: Icons.hiking,
+                  title: info.directionsLabel,
+                  children: [
+                    for (final trail in info.trails) _PlaceRow(place: trail),
+                  ],
+                ),
+                _HutDetails(
+                  icon: Icons.landscape_outlined,
+                  title: info.nearbyLabel,
+                  children: [
+                    for (final place in info.nearby) _PlaceRow(place: place),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _tab(_HutTab tab, IconData icon, String label) {
-    final selected = _selectedTab == tab;
-    final color = selected ? AppColors.primary : AppColors.textSecondary;
-    return Expanded(
-      child: Semantics(
-        selected: selected,
-        child: Material(
-          color: selected ? AppColors.surface : Colors.transparent,
-          elevation: selected ? 1 : 0,
-          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            onTap: () => setState(() => _selectedTab = tab),
-            child: Container(
-              constraints: const BoxConstraints(
-                minHeight: kMinInteractiveDimension,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingXs,
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: AppConstants.spacingMd, color: color),
-                    const SizedBox(width: AppConstants.spacingXs),
-                    Text(
-                      label,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: color,
-                        fontWeight: selected
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  static IconData _amenityIcon(HutAmenityType type) => switch (type) {
+    HutAmenityType.dining => Icons.soup_kitchen_outlined,
+    HutAmenityType.shelter => Icons.bed_outlined,
+    HutAmenityType.charging => Icons.bolt,
+  };
 }
 
-class _AmenityBadge extends StatelessWidget {
-  const _AmenityBadge({required this.amenity});
+/// A short fact shown inline: an icon followed by a text.
+class _HutFact extends StatelessWidget {
+  const _HutFact({
+    required this.icon,
+    required this.text,
+    this.iconColor = AppColors.textSecondary,
+    this.textColor = AppColors.textSecondary,
+  });
 
-  final HutAmenity amenity;
+  final IconData icon;
+  final String text;
+  final Color iconColor;
+  final Color textColor;
 
   @override
   Widget build(BuildContext context) {
-    final icon = switch (amenity.type) {
-      HutAmenityType.dining => Icons.soup_kitchen_outlined,
-      HutAmenityType.shelter => Icons.bed_outlined,
-      HutAmenityType.charging => Icons.bolt,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingSm,
-        vertical: AppConstants.spacingXs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.lightBorder),
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: AppConstants.spacingMd,
-            color: amenity.type == HutAmenityType.charging
-                ? AppColors.tertiary
-                : AppColors.primary,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: AppConstants.spacingMd, color: iconColor),
+        const SizedBox(width: AppConstants.spacingXs),
+        Flexible(
+          child: Text(
+            text,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: textColor),
           ),
-          const SizedBox(width: AppConstants.spacingXs),
-          Flexible(
-            child: Text(
-              amenity.label,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _PlaceTile extends StatelessWidget {
-  const _PlaceTile({required this.place, this.markerColor});
+/// A collapsible section of additional information, closed by default.
+class _HutDetails extends StatelessWidget {
+  const _HutDetails({
+    required this.icon,
+    required this.title,
+    required this.children,
+  });
+
+  final IconData icon;
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      leading: Icon(icon, size: 20, color: AppColors.primary),
+      title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      children: children,
+    );
+  }
+}
+
+/// A trail or a nearby spot: name, optional duration and a short description.
+class _PlaceRow extends StatelessWidget {
+  const _PlaceRow({required this.place});
 
   final HutPlace place;
-  final Color? markerColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingSm),
-      decoration: BoxDecoration(
-        color: AppColors.infoSurface,
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (markerColor != null) ...[
-            Padding(
-              padding: const EdgeInsets.only(top: AppConstants.spacingXs),
-              child: Icon(
-                Icons.circle,
-                size: AppConstants.spacingSm,
-                color: markerColor,
-              ),
-            ),
-            const SizedBox(width: AppConstants.spacingSm),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: Text(place.name, style: theme.labelLarge)),
-                    if (place.duration != null) ...[
-                      const SizedBox(width: AppConstants.spacingSm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppConstants.spacingSm,
-                          vertical: AppConstants.spacingXs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusSm,
-                          ),
-                        ),
-                        child: Text(
-                          place.duration!,
-                          style: theme.labelSmall?.copyWith(
-                            color: AppColors.surface,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  place.name,
+                  style: theme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: AppConstants.spacingXs),
+              ),
+              if (place.duration != null) ...[
+                const SizedBox(width: AppConstants.spacingSm),
                 Text(
-                  place.description,
-                  style: theme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  place.duration!,
+                  style: theme.labelMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
-            ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            place.description,
+            style: theme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

@@ -1,17 +1,19 @@
 // MH-09 Repeat a weekly schedule — E2E (real app + real backend)
-// As an employee I can copy the schedule of a week into another week, so that I do not
+// As an employee I can copy the schedule of a week into other weeks, so that I do not
 // have to configure recurring slots one by one. Clarification: a week that already has a
 // schedule is completely replaced, unless it has reservations.
 import 'dart:math';
 
 import 'package:client/core/utils/iso_week.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'helpers/e2e.dart';
 
-const _replicate = 'REPLICATE SCHEDULE TO TARGET';
-const _confirmTitle = 'Replace weekly schedule?';
+const _copy = 'COPY TO 1 WEEK';
+const _confirmTitle = 'Replace existing slots?';
+final _copiedMessage = RegExp(r'^Copied \d');
 
 final _random = Random();
 
@@ -54,22 +56,40 @@ void main() {
   Future<void> openStaffPortal(WidgetTester tester) async {
     await launchApp(tester);
     await signInFromNavigation(tester, staffEmail);
-    await tap(tester, find.text('Staff Portal'));
-    await waitFor(tester, find.text('WEEKLY SCHEDULE REPLICATION'));
+    await tap(tester, find.text('Dining'));
+    await waitFor(tester, find.byKey(const ValueKey('copy-weeks-button')));
+  }
+
+  // The month shown by the calendar of the "Copy weeks" dialog.
+  late DateTime shownMonth;
+
+  /// Moves the calendar to the month of [monday] and taps that week.
+  Future<void> tapWeek(WidgetTester tester, DateTime monday) async {
+    final delta = (monday.year - shownMonth.year) * 12 + monday.month - shownMonth.month;
+    for (var i = 0; i < delta.abs(); i++) {
+      await tap(tester, find.byTooltip(delta > 0 ? 'Next month' : 'Previous month'));
+    }
+    shownMonth = DateTime(monday.year, monday.month);
+    await tap(tester, find.byKey(ValueKey('copy-week-${ymd(monday)}')));
   }
 
   Future<void> chooseWeeks(WidgetTester tester) async {
-    await tap(tester, find.byTooltip('Choose SOURCE WEEK'));
-    await typeInDatePicker(tester, _day(source, 2));
-    await tap(tester, find.byTooltip('Choose TARGET WEEK'));
-    await typeInDatePicker(tester, _day(target, 4));
+    // the weeks are chosen on the calendar of the "Copy weeks" dialog of the Planning tab
+    await tap(tester, find.byKey(const ValueKey('copy-weeks-button')));
+    await waitFor(tester, find.text('COPY WEEKS'));
+    final now = DateTime.now();
+    shownMonth = DateTime(now.year, now.month);
+    await tap(tester, find.text('Clear')); // by default the next week would be filled too
+    await tap(tester, find.text('Week to copy'));
+    await tapWeek(tester, source);
+    await tapWeek(tester, target);
   }
 
-  Future<void> pressReplicate(WidgetTester tester) async {
-    await waitFor(tester, find.text(_replicate));
-    await tester.ensureVisible(find.text(_replicate));
+  Future<void> pressCopy(WidgetTester tester) async {
+    await waitFor(tester, find.text(_copy));
+    await tester.ensureVisible(find.text(_copy));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(_replicate));
+    await tester.tap(find.text(_copy));
     await tester.pump();
   }
 
@@ -90,8 +110,8 @@ void main() {
   testWidgets('the employee copies a week into an empty week: same days, times and tables', (tester) async {
     await openStaffPortal(tester);
     await chooseWeeks(tester);
-    await pressReplicate(tester);
-    await waitFor(tester, find.text('Replicated 2 service slots to the target week.'));
+    await pressCopy(tester);
+    await waitFor(tester, find.text('Copied 2 service slots into 1 week.'));
 
     expect(find.text(_confirmTitle), findsNothing);
     expect(await _scheduleOf(target), [
@@ -106,8 +126,8 @@ void main() {
   testWidgets('a visitor sees the copied slots of the new week', (tester) async {
     await openStaffPortal(tester);
     await chooseWeeks(tester);
-    await pressReplicate(tester);
-    await waitFor(tester, find.text('Replicated 2 service slots to the target week.'));
+    await pressCopy(tester);
+    await waitFor(tester, find.text('Copied 2 service slots into 1 week.'));
 
     await launchApp(tester);
     await chooseSearchDate(tester, target);
@@ -123,12 +143,12 @@ void main() {
 
     await openStaffPortal(tester);
     await chooseWeeks(tester);
-    await pressReplicate(tester);
+    await pressCopy(tester);
     await waitWithoutSettling(tester, find.text(_confirmTitle));
-    expect(find.textContaining('The week starting ${ymd(target)} has 2 slots.'), findsOneWidget);
+    expect(find.text('• Week starting ${ymd(target)}: 2 slots'), findsOneWidget);
 
-    await answer(tester, 'Replace week');
-    await waitFor(tester, find.text('Replicated 2 service slots to the target week.'));
+    await answer(tester, 'Replace');
+    await waitFor(tester, find.text('Copied 2 service slots into 1 week.'));
 
     expect(await _scheduleOf(target), [
       ['${ymd(target)} 12:00', '${ymd(target)} 13:00'],
@@ -141,12 +161,12 @@ void main() {
 
     await openStaffPortal(tester);
     await chooseWeeks(tester);
-    await pressReplicate(tester);
+    await pressCopy(tester);
     await waitWithoutSettling(tester, find.text(_confirmTitle));
     await answer(tester, 'Cancel');
     await waitUntilGone(tester, find.text(_confirmTitle));
 
-    expect(find.textContaining('Replicated'), findsNothing);
+    expect(find.textContaining(_copiedMessage), findsNothing);
     expect(await _scheduleOf(target), [
       ['${ymd(_day(target, 1))} 11:00', '${ymd(_day(target, 1))} 12:00'],
     ]);
@@ -158,12 +178,12 @@ void main() {
 
     await openStaffPortal(tester);
     await chooseWeeks(tester);
-    await pressReplicate(tester);
+    await pressCopy(tester);
     await waitWithoutSettling(tester, find.text(_confirmTitle));
-    await answer(tester, 'Replace week');
-    await waitFor(tester, find.text('The target week has reservations: it cannot be replaced'));
+    await answer(tester, 'Replace');
+    await waitFor(tester, find.textContaining('The target week has reservations: it cannot be replaced'));
 
-    expect(find.textContaining('Replicated'), findsNothing);
+    expect(find.textContaining(_copiedMessage), findsNothing);
     expect(await _scheduleOf(target), [
       ['${ymd(_day(target, 3))} 12:00', '${ymd(_day(target, 3))} 13:00'],
     ]);

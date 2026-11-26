@@ -1,7 +1,9 @@
-// MH-21 View active hikes — integration tests (StaffPortalBody + ActiveHikesSection, fake API)
+// MH-21 View active hikes — integration tests (ActiveHikesPage + ActiveHikesSection, fake API)
 import 'dart:async';
 
+import 'package:client/core/navigation/app_bottom_navigation.dart';
 import 'package:client/core/network/mountain_hut_api.dart';
+import 'package:client/features/staff_portal/presentation/pages/active_hikes_page.dart';
 import 'package:client/features/staff_portal/presentation/widgets/active_hikes_section.dart';
 import 'package:client/features/staff_portal/presentation/widgets/staff_portal_body.dart';
 import 'package:flutter/material.dart';
@@ -43,16 +45,47 @@ void main() {
   bool cardShows(WidgetTester tester, String hiker, String text) =>
       find.descendant(of: cardOf(hiker), matching: find.text(text)).evaluate().isNotEmpty;
 
-  group('In the staff portal', () {
-    testWidgets('the "Active Hikes" tab shows the active hikes', (tester) async {
+  group('In the staff area', () {
+    testWidgets('the active hikes have their own page, next to Dining in the bottom navigation',
+        (tester) async {
       api.activeHikes = [_hike()];
-      await pumpPage(tester, Scaffold(body: StaffPortalBody(api: api)));
-      await tester.tap(find.text('Active Hikes'));
-      await tester.pumpAndSettle();
+      await pumpPage(tester, ActiveHikesPage(authRepository: FakeAuthRepository(), api: api));
 
+      expect(find.text('ACTIVE HIKES'), findsOneWidget);
       expect(find.text('1 active hike'), findsOneWidget);
       expect(find.text('Marco Bianchi'), findsOneWidget);
       expect(api.called('listActiveHikes'), isNotEmpty);
+      for (final item in ['Dining', 'Active Hikes', 'Account']) {
+        expect(find.text(item), findsOneWidget, reason: item);
+      }
+    });
+
+    testWidgets('the Dining area keeps only the dining tabs', (tester) async {
+      await pumpPage(tester, Scaffold(body: StaffPortalBody(api: api)));
+
+      expect(find.text('Planning'), findsOneWidget);
+      expect(find.text('Phone / Walk-in Booking'), findsOneWidget);
+      expect(find.text('Active Hikes'), findsNothing);
+      expect(find.byType(ActiveHikesSection), findsNothing);
+      expect(api.called('listActiveHikes'), isEmpty);
+    });
+
+    testWidgets('an employee reaches the active hikes from the bottom navigation', (tester) async {
+      var opened = 0;
+      await pumpPage(
+        tester,
+        Scaffold(
+          bottomNavigationBar: AppBottomNavigation(
+            role: AppNavigationRole.employee,
+            selectedTab: AppNavigationTab.staffPortal,
+            onActiveHikes: () => opened++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Active Hikes'));
+      await tester.pumpAndSettle();
+      expect(opened, 1);
     });
   });
 

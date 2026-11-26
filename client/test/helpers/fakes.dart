@@ -46,6 +46,8 @@ class FakeApi extends Fake implements MountainHutApi {
   ApiException? staffBookingError;
   int repeatedSlots = 3;
   ApiException? repeatWeekError;
+  /// Errors for single target weeks ('YYYY-MM-DD' of the Monday), to copy some weeks and refuse others.
+  Map<String, ApiException> repeatWeekErrorsByTarget = {};
   List<Map<String, dynamic>> recentMenuRows = [];
   ApiException? recentMenusError;
   ApiException? publishMenuError;
@@ -61,6 +63,8 @@ class FakeApi extends Fake implements MountainHutApi {
   Future<int> repeatWeek({required String sourceWeek, required String targetWeek}) async {
     calls.add(Call('repeatWeek', {'sourceWeek': sourceWeek, 'targetWeek': targetWeek}));
     if (repeatWeekError != null) throw repeatWeekError!;
+    final targetError = repeatWeekErrorsByTarget[targetWeek];
+    if (targetError != null) throw targetError;
     return repeatedSlots;
   }
 

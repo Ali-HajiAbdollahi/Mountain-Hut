@@ -19,32 +19,25 @@ class StaffDashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('STAFF PORTAL')),
+      appBar: AppBar(title: const Text('DINING')),
       body: StaffPortalBody(api: api),
       bottomNavigationBar: AppBottomNavigation(
         role: AppNavigationRole.employee,
         selectedTab: AppNavigationTab.staffPortal,
-        onAccount: () {
-          final navigator = AppNavigation.navigatorKey.currentState;
-          if (navigator == null) return;
-          navigator.pushReplacement(
-            AppNavigation.account(
-              authRepository: authRepository,
-              api: api,
-              onStaffPortal: () {
-                final currentNavigator =
-                    AppNavigation.navigatorKey.currentState;
-                if (currentNavigator == null) return;
-                currentNavigator.pushReplacement(
-                  AppNavigation.staffPortal(
-                    authRepository: authRepository,
-                    api: api,
-                  ),
-                );
-              },
+        onActiveHikes: () =>
+            AppNavigation.navigatorKey.currentState?.pushReplacement(
+              AppNavigation.activeHikes(
+                authRepository: authRepository,
+                api: api,
+              ),
             ),
-          );
-        },
+        onAccount: () =>
+            AppNavigation.navigatorKey.currentState?.pushReplacement(
+              AppNavigation.staffAccount(
+                authRepository: authRepository,
+                api: api,
+              ),
+            ),
       ),
     );
   }

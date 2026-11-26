@@ -43,7 +43,7 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-/// Picks a day in the date picker of "TARGET OPERATIONAL DAY", typing it in input mode.
+/// Picks a day in the date picker of "DAY", typing it in input mode.
 Future<void> _changeDay(WidgetTester tester, DateTime day) async {
   await _tap(tester, find.text('Change'));
   await _tap(tester, find.byIcon(Icons.edit_outlined));
@@ -93,12 +93,12 @@ void staffTest(
 void main() {
   group('Staff portal', () {
     testWidgets(
-      'opens on "Define Slot Capacity" and loads the slots of today',
+      'opens on "Planning" and loads the slots of today',
       (tester) async {
         final api = FakeApi()..slots = [_lunch()];
         await pumpPage(tester, Scaffold(body: StaffPortalBody(api: api)));
 
-        expect(find.text('Define Slot Capacity'), findsOneWidget);
+        expect(find.text('Planning'), findsOneWidget);
         expect(find.text('Phone / Walk-in Booking'), findsOneWidget);
         expect(find.text('SERVICE SLOTS'), findsOneWidget);
         expect(api.called('listSlots').single.args['date'], formatYmd(_today));
@@ -139,7 +139,7 @@ void main() {
       await _pumpSection(tester, FakeApi());
       expect(find.text('No service slots for this day.'), findsOneWidget);
       expect(
-        find.text('Select or create a slot to configure its tables.'),
+        find.text('Select or create a slot to configure its tables and menu.'),
         findsOneWidget,
       );
     });
@@ -481,6 +481,84 @@ void main() {
       await _tap(tester, find.text('Cancel'));
       expect(find.text('Save Table Allocations'), findsNothing);
       expect(saved, isNull);
+    });
+  });
+
+  group('Selected slot: tables and menu (MH-167)', () {
+    const editor = ValueKey('slot-menu-editor');
+    const discardTitle = 'Discard unsaved menu changes?';
+    String title(String slot) => '$slot · ${formatLongDate(_today)}';
+
+    testWidgets('tables and menu of the selected slot are two tabs, under the name of the slot', (tester) async {
+      final api = FakeApi()..slots = [_lunch(), _emptySlot()];
+      await _pumpSection(tester, api);
+
+      expect(find.text(title('12:00–13:00')), findsOneWidget);
+      expect(find.text('Configure Slot Tables & Capacity'), findsOneWidget);
+      expect(find.text('SLOT MENU CONFIGURATION'), findsNothing);
+
+      await _tap(tester, find.byKey(slotMenuTabKey));
+      expect(find.text('SLOT MENU CONFIGURATION'), findsOneWidget);
+      expect(find.text('Configure Slot Tables & Capacity'), findsNothing);
+
+      await _tap(tester, find.text('13:00 – 14:00'));
+      expect(find.text(title('13:00–14:00')), findsOneWidget);
+    });
+
+    testWidgets('without a selected slot a single hint replaces tables and menu', (tester) async {
+      await _pumpSection(tester, FakeApi());
+      expect(find.text('Select or create a slot to configure its tables and menu.'), findsOneWidget);
+      expect(find.text('Configure Slot Tables & Capacity'), findsNothing);
+      expect(find.text('SLOT MENU CONFIGURATION'), findsNothing);
+      expect(find.byKey(slotMenuTabKey), findsNothing);
+    });
+
+    testWidgets('an unpublished menu is not lost silently when another slot is chosen', (tester) async {
+      final api = FakeApi()..slots = [_lunch(), _emptySlot()];
+      await _pumpSection(tester, api);
+      await _tap(tester, find.byKey(slotMenuTabKey));
+      await tester.enterText(find.byKey(editor), 'Polenta');
+      await tester.pump();
+
+      await _tap(tester, find.text('13:00 – 14:00'));
+      expect(find.text(discardTitle), findsOneWidget);
+
+      await _tap(tester, find.text('Keep editing'));
+      expect(find.text(discardTitle), findsNothing);
+      expect(find.text(title('12:00–13:00')), findsOneWidget);
+      expect(tester.widget<TextField>(find.byKey(editor)).controller!.text, 'Polenta');
+
+      await _tap(tester, find.text('13:00 – 14:00'));
+      await _tap(tester, find.text('Discard changes'));
+      expect(find.text(title('13:00–14:00')), findsOneWidget);
+      expect(tester.widget<TextField>(find.byKey(editor)).controller!.text, isEmpty);
+      expect(api.called('publishSlotMenu'), isEmpty);
+    });
+
+    testWidgets('the unsaved menu is kept while looking at the tables of the same slot', (tester) async {
+      final api = FakeApi()..slots = [_lunch(), _emptySlot()];
+      await _pumpSection(tester, api);
+      await _tap(tester, find.byKey(slotMenuTabKey));
+      await tester.enterText(find.byKey(editor), 'Polenta');
+      await tester.pump();
+
+      await _tap(tester, find.byKey(slotTablesTabKey));
+      await _tap(tester, find.byKey(slotMenuTabKey));
+      expect(tester.widget<TextField>(find.byKey(editor)).controller!.text, 'Polenta');
+    });
+
+    testWidgets('after publishing, another slot can be chosen without being asked', (tester) async {
+      final api = FakeApi()..slots = [_lunch(), _emptySlot()];
+      await _pumpSection(tester, api);
+      await _tap(tester, find.byKey(slotMenuTabKey));
+      await tester.enterText(find.byKey(editor), 'Polenta');
+      await tester.pump();
+      await _tap(tester, find.text('SAVE & PUBLISH MENU'));
+      expect(api.called('publishSlotMenu').single.args['slotId'], 1);
+
+      await _tap(tester, find.text('13:00 – 14:00'));
+      expect(find.text(discardTitle), findsNothing);
+      expect(find.text(title('13:00–14:00')), findsOneWidget);
     });
   });
 }

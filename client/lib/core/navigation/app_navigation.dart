@@ -11,6 +11,7 @@ import '../../features/booking/presentation/pages/booking_success_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/hiker_portal/presentation/pages/my_bookings_page.dart';
 import '../../features/account/presentation/pages/account_page.dart';
+import '../../features/staff_portal/presentation/pages/active_hikes_page.dart';
 import '../../features/staff_portal/presentation/pages/staff_dashboard_page.dart';
 import '../../features/hike_registration/presentation/pages/hike_registration_page.dart';
 
@@ -102,6 +103,7 @@ class AppNavigation {
     VoidCallback? onExplore,
     VoidCallback? onBookings,
     VoidCallback? onStaffPortal,
+    VoidCallback? onActiveHikes,
     VoidCallback? onLogout,
   }) {
     return PageRouteBuilder<void>(
@@ -113,11 +115,31 @@ class AppNavigation {
         onExplore: onExplore,
         onBookings: onBookings,
         onStaffPortal: onStaffPortal,
+        onActiveHikes: onActiveHikes,
         onLogout: onLogout,
       ),
     );
   }
 
+  /// The account page of an employee, linked to the two staff areas.
+  static Route<void> staffAccount({
+    required AuthRepository authRepository,
+    required MountainHutApi api,
+  }) {
+    return account(
+      authRepository: authRepository,
+      api: api,
+      onStaffPortal: () => navigatorKey.currentState?.pushReplacement(
+        staffPortal(authRepository: authRepository, api: api),
+      ),
+      onActiveHikes: () => navigatorKey.currentState?.pushReplacement(
+        activeHikes(authRepository: authRepository, api: api),
+      ),
+    );
+  }
+
+  /// Dining area of the employees ("Dining" in the bottom navigation):
+  /// slots, tables, menus and bookings.
   static Route<void> staffPortal({
     required AuthRepository authRepository,
     required MountainHutApi api,
@@ -127,6 +149,19 @@ class AppNavigation {
       reverseTransitionDuration: Duration.zero,
       pageBuilder: (context, animation, secondaryAnimation) =>
           StaffDashboardPage(authRepository: authRepository, api: api),
+    );
+  }
+
+  /// Hikes area of the employees: the hikers currently out (MH-21).
+  static Route<void> activeHikes({
+    required AuthRepository authRepository,
+    required MountainHutApi api,
+  }) {
+    return PageRouteBuilder<void>(
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          ActiveHikesPage(authRepository: authRepository, api: api),
     );
   }
 

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../helpers/fakes.dart';
 
 const _button = 'Register a Planned Hike';
+const _hikesTab = 'Hikes';
 const _destinationHint = 'e.g. Monte Viso Base';
 const _routeHint = 'e.g. via the Chiaretto lake';
 const _pointHint = 'e.g. Colle del Pas';
@@ -56,9 +57,20 @@ void main() {
   Map<String, dynamic> sentHike() => api.called('registerHike').single.args['hike']! as Map<String, dynamic>;
 
   group('Opening the form from Explore', () {
+    testWidgets('the button is in the "Hikes" tab, not in the table search', (tester) async {
+      api.user = {'uID': 2, 'role': 'hiker', 'name': 'Marco Bianchi'};
+      await pumpPage(tester, ExplorePage(authRepository: FakeAuthRepository(), api: api));
+
+      expect(find.text(_button), findsNothing);
+      await tap(tester, find.text(_hikesTab));
+      expect(find.text(_button), findsOneWidget);
+      expect(find.text('My Hikes'), findsOneWidget);
+    });
+
     testWidgets('a signed-in hiker sees "Register a Planned Hike" and it opens the form', (tester) async {
       api.user = {'uID': 2, 'role': 'hiker', 'name': 'Marco Bianchi'};
       await pumpPage(tester, ExplorePage(authRepository: FakeAuthRepository(), api: api));
+      await tap(tester, find.text(_hikesTab));
 
       expect(find.text(_button), findsOneWidget);
       await tap(tester, find.text(_button));
@@ -66,14 +78,18 @@ void main() {
       expect(find.text('Register a Hike'), findsOneWidget);
     });
 
-    testWidgets('a visitor without login does not see the button', (tester) async {
+    testWidgets('a visitor without login does not see the button but is asked to sign in', (tester) async {
       await pumpPage(tester, ExplorePage(authRepository: FakeAuthRepository(), api: api));
+      await tap(tester, find.text(_hikesTab));
       expect(find.text(_button), findsNothing);
+      expect(find.text('Sign in to register a hike'), findsOneWidget);
+      expect(find.text('My Hikes'), findsNothing);
     });
 
     testWidgets('an employee does not see the button', (tester) async {
       api.user = {'uID': 9, 'role': 'employee', 'name': 'Elena Gestore'};
       await pumpPage(tester, ExplorePage(authRepository: FakeAuthRepository(), api: api));
+      await tap(tester, find.text(_hikesTab));
       expect(find.text(_button), findsNothing);
     });
   });
@@ -223,6 +239,7 @@ void main() {
     testWidgets('"Back to Explore" closes the page after the registration', (tester) async {
       api.user = {'uID': 2, 'role': 'hiker', 'name': 'Marco Bianchi'};
       await pumpPage(tester, ExplorePage(authRepository: FakeAuthRepository(), api: api));
+      await tap(tester, find.text(_hikesTab));
       await tap(tester, find.text(_button));
       await fillRequired(tester);
       await tap(tester, find.text('Register Hike'));
