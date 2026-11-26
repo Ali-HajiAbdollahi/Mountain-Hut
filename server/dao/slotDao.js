@@ -12,6 +12,22 @@ export function createSlotDao(db) {
   const insert = db.prepare('INSERT INTO timeslots(start_time,end_time) VALUES (?,?)');
   const insertTable = db.prepare('INSERT INTO slot_tables(tsID,table_no,seats) VALUES (?,?,?)');
   const menuForSlot = db.prepare('SELECT menu FROM slot_menus WHERE tsID = ?');
+  // Separate subqueries: joining slot_tables and booking_tables together would
+  // repeat each table once per booking and inflate both sums.
+  const occupancyInRange = db.prepare(`
+    WITH slot_seats AS (
+      SELECT s.tsID, s.start_time, s.end_time,
+             (SELECT COALESCE(SUM(st.seats), 0) FROM slot_tables AS st
+              WHERE st.tsID = s.tsID) AS total_seats,
+             (SELECT COALESCE(SUM(bt.seats), 0) FROM booking_tables AS bt
+              WHERE bt.tsID = s.tsID) AS booked_seats
+      FROM timeslots AS s
+      WHERE s.start_time >= ? AND s.start_time < ?
+    )
+    SELECT tsID, start_time, end_time, total_seats, booked_seats,
+           total_seats - booked_seats AS free_seats
+    FROM slot_seats
+    ORDER BY start_time, tsID`);
   const dao = {
     atomic: action => transaction(db, action),
     find: id => slot.get(id),
@@ -29,6 +45,9 @@ export function createSlotDao(db) {
     // Slots starting in [from, to), e.g. a week; times are 'YYYY-MM-DD HH:MM' strings.
     listRange: (from,to) => db.prepare(`SELECT tsID,start_time,end_time FROM timeslots
       WHERE start_time>=? AND start_time<? ORDER BY start_time,tsID`).all(from,to),
+    // Occupancy of the slots starting in [from, to): a day or a week (MH-12).
+    // Slots without tables are included, with every count at 0.
+    occupancy: (from, to) => occupancyInRange.all(from, to),
     recentMenus(before) {
       return db.prepare(`
         WITH ranked AS (
