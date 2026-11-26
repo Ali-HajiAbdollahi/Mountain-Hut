@@ -29,6 +29,13 @@ export function createHikeDao(db) {
     WHERE hID = ?
     ORDER BY position
   `);
+  const openHikesOfOwner = db.prepare(`
+    SELECT hID, destination, departure_time, expected_return
+    FROM hikes
+    WHERE uID = ?
+      AND returned_at IS NULL
+    ORDER BY departure_time, hID
+  `);
   // A single UPDATE, so the first confirmation is never overwritten. The departure
   // condition keeps the CHECK (returned_at >= departure_time) from failing.
   const confirmOwnedReturn = db.prepare(`
@@ -78,6 +85,12 @@ export function createHikeDao(db) {
         ...hike,
         waypoints: waypointsForHike.all(hike.hID),
       }));
+    },
+
+    // The hikes of user uID not yet confirmed as completed (MH-71), the earliest departure first.
+    // Hikes that have not started yet are included: departure_time tells them apart.
+    listOpenByOwner(uID) {
+      return openHikesOfOwner.all(uID);
     },
 
     // Records that the owner is back from hike hID (MH-71). returnedAt is 'YYYY-MM-DD HH:MM'
