@@ -29,6 +29,16 @@ export function createHikeDao(db) {
     WHERE hID = ?
     ORDER BY position
   `);
+  // A single UPDATE, so the first confirmation is never overwritten. The departure
+  // condition keeps the CHECK (returned_at >= departure_time) from failing.
+  const confirmOwnedReturn = db.prepare(`
+    UPDATE hikes
+    SET returned_at = ?
+    WHERE hID = ?
+      AND uID = ?
+      AND returned_at IS NULL
+      AND departure_time <= ?
+  `);
 
   return {
     atomic: action => transaction(db, action),
@@ -68,6 +78,13 @@ export function createHikeDao(db) {
         ...hike,
         waypoints: waypointsForHike.all(hike.hID),
       }));
+    },
+
+    // Records that the owner is back from hike hID (MH-71). returnedAt is 'YYYY-MM-DD HH:MM'
+    // in hut time. Returns false, changing nothing, if the hike does not exist, belongs to
+    // another user, is already confirmed or has not started yet at returnedAt.
+    confirmReturn(hID, uID, returnedAt) {
+      return confirmOwnedReturn.run(returnedAt, hID, uID, returnedAt).changes > 0;
     },
   };
 }
