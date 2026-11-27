@@ -9,8 +9,12 @@ const MIN_PASSWORD_LENGTH = 8;
 const KEY_LENGTH = 64;
 // SQLite extended result code for "UNIQUE constraint failed"
 const SQLITE_CONSTRAINT_UNIQUE = 2067;
-// email shape check: something@something.something, no spaces
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// longest valid email address (RFC 5321); also bounds the work done by the regex
+const MAX_EMAIL_LENGTH = 254;
+// email shape check: something@label.label, no spaces; domain labels cannot contain '.', so the
+// parts never overlap and matching stays linear (no backtracking)
+const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+const isValidEmail = email => email.length <= MAX_EMAIL_LENGTH && EMAIL_RE.test(email);
 
 // derives the password hash (hex) from the password and the salt (hex)
 const hashPassword = (password, salt) =>
@@ -63,7 +67,7 @@ export function createAuthService(userDao) {
       // name is mandatory
       if (!name) throw new ValidationError('Name is required');
       // email must be present and "look like an email"
-      if (!email || !EMAIL_RE.test(email)) throw new ValidationError('A valid email is required');
+      if (!email || !isValidEmail(email)) throw new ValidationError('A valid email is required');
       // password must be a string of at least MIN_PASSWORD_LENGTH characters
       if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH)
         throw new ValidationError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
