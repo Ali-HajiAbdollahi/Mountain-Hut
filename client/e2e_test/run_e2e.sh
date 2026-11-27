@@ -19,7 +19,7 @@ for file in e2e_test/mh*_test.dart; do
 done
 
 echo
-if [ ${#failed[@]} -eq 0 ]; then
+if [[ ${#failed[@]} -eq 0 ]]; then
   echo "All E2E files passed."
 else
   echo "Files with failing tests:"
