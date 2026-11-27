@@ -1,0 +1,45 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Rome
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Backend tests with coverage
+        working-directory: server
+        run: |
+          npm ci
+          npm run coverage -- --coverage.reporter=lcov
+          sed -i -E 's#^SF:([^/])#SF:server/\1#' coverage/lcov.info
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Frontend tests with coverage
+        working-directory: client
+        run: |
+          flutter pub get
+          flutter test --coverage
+          sed -i -E 's#^SF:([^/])#SF:client/\1#' coverage/lcov.info
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
