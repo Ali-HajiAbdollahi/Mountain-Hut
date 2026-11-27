@@ -5,6 +5,11 @@ import { HUT_ZONE } from '../domain/time.js';
 
 export function createHikeService(hikes) {
   return {
+    listMine(user) {
+      if (user?.role !== 'hiker') throw new ForbiddenError('Hiker account required');
+      return hikes.listOwnedOpen(user.uID);
+    },
+
     listActive(user) {
       if (user?.role !== 'employee') {
         throw new ForbiddenError('Employee account required');

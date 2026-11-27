@@ -63,6 +63,13 @@ export function createHikeDao(db) {
       return { ...hike, waypoints };
     },
 
+    listOwnedOpen(uID) {
+      return db.prepare(`SELECT * FROM hikes WHERE uID = ? AND returned_at IS NULL
+        ORDER BY departure_time, hID`).all(uID).map(hike => ({
+          ...hike, waypoints: waypointsForHike.all(hike.hID),
+        }));
+    },
+
     listActive(now) {
       return activeHikes.all(now).map(hike => ({
         ...hike,
