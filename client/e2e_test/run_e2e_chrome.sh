@@ -22,7 +22,7 @@ case "$(uname -s)" in
     chrome_version=$( (google-chrome --version || chromium --version) 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | head -1) ;;
 esac
 major="${chrome_version%%.*}"
-if [ -z "$major" ]; then
+if [[ -z "$major" ]]; then
   echo "Chrome version not detected: using the latest stable ChromeDriver."
   major="stable"
 fi
@@ -31,7 +31,7 @@ fi
 echo "Preparing ChromeDriver for Chrome $major..."
 driver=$(npx --yes @puppeteer/browsers install "chromedriver@$major" --path "$PWD/.dart_tool/chromedriver" \
   | tail -1 | cut -d' ' -f2-)
-if [ ! -f "$driver" ]; then
+if [[ ! -f "$driver" ]]; then
   echo "Could not download ChromeDriver."
   exit 1
 fi
@@ -49,7 +49,7 @@ for file in e2e_test/mh*_test.dart; do
 done
 
 echo
-if [ ${#failed[@]} -eq 0 ]; then
+if [[ ${#failed[@]} -eq 0 ]]; then
   echo "All E2E files passed."
 else
   echo "Files with failing tests:"
