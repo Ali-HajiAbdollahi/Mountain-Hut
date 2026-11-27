@@ -33,6 +33,12 @@ export function createHikeDao(db) {
     WHERE hID = ?
     ORDER BY position
   `);
+  const partyOfHike = db.prepare(`
+    SELECT position, name, phone
+    FROM hike_party_members
+    WHERE hID = ?
+    ORDER BY position
+  `);
   const openHikesOfOwner = db.prepare(`
     SELECT hID, destination, departure_time, expected_return
     FROM hikes
@@ -90,7 +96,13 @@ export function createHikeDao(db) {
         ORDER BY position
       `).all(hID);
 
-      return { ...hike, waypoints };
+      return { ...hike, waypoints, party_members: partyOfHike.all(hID) };
+    },
+
+    // The party of hike hID (MH-72) in order, the hiker who registered it first; the party
+    // size is the length of the list. Empty for an unknown hike.
+    partyMembers(hID) {
+      return partyOfHike.all(hID);
     },
 
     listActive(now) {
