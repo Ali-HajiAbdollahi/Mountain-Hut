@@ -10,6 +10,10 @@ export function createHikeDao(db) {
     INSERT INTO hike_waypoints (hID, position, name)
     VALUES (?, ?, ?)
   `);
+  const insertPartyMember = db.prepare(`
+    INSERT INTO hike_party_members (hID, position, name, phone)
+    VALUES (?, ?, ?, ?)
+  `);
   const activeHikes = db.prepare(`
     SELECT
       h.hID,
@@ -63,6 +67,15 @@ export function createHikeDao(db) {
     addWaypoints(hID, waypoints) {
       waypoints.forEach((waypoint, index) => {
         insertWaypoint.run(hID, index + 1, waypoint.name);
+      });
+    },
+
+    // Saves the party of hike hID (MH-72) in the order given: the first member is the hiker
+    // who registers the hike. A missing phone is stored as NULL. Call it inside atomic(),
+    // together with insert(), so that an invalid member also cancels the hike.
+    addPartyMembers(hID, members) {
+      members.forEach((member, index) => {
+        insertPartyMember.run(hID, index + 1, member.name, member.phone ?? null);
       });
     },
 
