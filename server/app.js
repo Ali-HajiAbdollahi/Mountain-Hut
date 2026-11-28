@@ -1,4 +1,5 @@
 import express from 'express';
+import { createOccupancyRouter } from './routes/occupancyRoutes.js';
 import cors from 'cors';
 import session from 'express-session';
 import { createUserDao } from './dao/userDao.js';
@@ -59,13 +60,15 @@ export function createApp(db, { bookingRouter, staffBookingRouter, hikeRouter, m
     mail,
     resetUrl: process.env.PASSWORD_RESET_URL || `${origin.replace(/\/$/, '')}/reset-password`,
   }));
-  app.use('/api/timeslots', createSlotRouter(createSlotService(createSlotDao(db))));
+  const slotDao = createSlotDao(db);
+  app.use('/api/timeslots', createSlotRouter(createSlotService(slotDao)));
   app.use(
     '/api/availability',
     createAvailabilityRouter(
       createAvailabilityService(createAvailabilityDao(db)),
     ),
   );
+  app.use('/api/occupancy', createOccupancyRouter(slotDao));
   if (bookingRouter) app.use('/api/bookings', bookingRouter);
   if (staffBookingRouter) app.use('/api/staff', staffBookingRouter);
   if (hikeRouter) app.use('/api/hikes', hikeRouter);

@@ -9,6 +9,10 @@ export function createHikeRouter(service) {
     res.status(201).json({ hike });
   });
 
+  router.get('/mine', requireRole('hiker'), (req, res) => {
+    res.json(service.listMine(req.user));
+  });
+
   router.get('/active', requireRole('employee'), (req, res) => {
     res.json(service.listActive(req.user));
   });
