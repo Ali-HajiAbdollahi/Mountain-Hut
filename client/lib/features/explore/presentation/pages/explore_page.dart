@@ -5,6 +5,7 @@ import '../../../../core/navigation/app_navigation.dart';
 import '../../../../core/navigation/app_bottom_navigation.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/tab_selector_button.dart';
 import '../../../auth/domain/entities/auth_context.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../../../auth/presentation/pages/change_password_screen.dart';
@@ -1172,7 +1173,7 @@ class _HomeTabs extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _HomeTabButton(
+            child: TabSelectorButton(
               icon: Icons.cabin,
               label: 'The Hut',
               selected: selected == _HomeTab.hut,
@@ -1181,7 +1182,7 @@ class _HomeTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppConstants.spacingXs),
           Expanded(
-            child: _HomeTabButton(
+            child: TabSelectorButton(
               icon: Icons.table_restaurant,
               label: 'Book a Table',
               selected: selected == _HomeTab.booking,
@@ -1190,7 +1191,7 @@ class _HomeTabs extends StatelessWidget {
           ),
           const SizedBox(width: AppConstants.spacingXs),
           Expanded(
-            child: _HomeTabButton(
+            child: TabSelectorButton(
               icon: Icons.hiking,
               label: 'Hikes',
               selected: selected == _HomeTab.hikes,
@@ -1198,57 +1199,6 @@ class _HomeTabs extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HomeTabButton extends StatelessWidget {
-  const _HomeTabButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? Colors.white : AppColors.textSecondary;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: AppConstants.spacingSm,
-          ),
-          color: selected ? AppColors.primary : Colors.transparent,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

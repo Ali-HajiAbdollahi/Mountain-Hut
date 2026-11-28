@@ -4,6 +4,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/mountain_hut_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/iso_week.dart';
+import '../../../../core/widgets/tab_selector_button.dart';
 import '../../domain/entities/service_slot.dart';
 import 'slot_form_dialog.dart';
 import 'slot_menu_configuration_card.dart';
@@ -676,22 +677,26 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
             child: Row(
               children: [
                 Expanded(
-                  child: _SubTabButton(
+                  child: TabSelectorButton(
                     key: slotTablesTabKey,
                     icon: Icons.table_restaurant,
                     label: 'Tables',
                     selected: _detail == _SlotDetail.tables,
                     onTap: () => setState(() => _detail = _SlotDetail.tables),
+                    verticalPadding: 10,
+                    ellipsis: true,
                   ),
                 ),
                 const SizedBox(width: AppConstants.spacingXs),
                 Expanded(
-                  child: _SubTabButton(
+                  child: TabSelectorButton(
                     key: slotMenuTabKey,
                     icon: Icons.restaurant_menu,
                     label: 'Menu',
                     selected: _detail == _SlotDetail.menu,
                     onTap: () => setState(() => _detail = _SlotDetail.menu),
+                    verticalPadding: 10,
+                    ellipsis: true,
                   ),
                 ),
               ],
@@ -802,59 +807,6 @@ class _SlotCapacitySectionState extends State<SlotCapacitySection> {
           fontSize: 10,
           fontWeight: FontWeight.w700,
           color: AppColors.primary,
-        ),
-      ),
-    );
-  }
-}
-
-/// A tab of the selected slot ("Tables" or "Menu").
-class _SubTabButton extends StatelessWidget {
-  const _SubTabButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    super.key,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? Colors.white : AppColors.textSecondary;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: 10,
-            horizontal: AppConstants.spacingSm,
-          ),
-          color: selected ? AppColors.primary : Colors.transparent,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
