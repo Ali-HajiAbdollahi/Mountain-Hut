@@ -113,6 +113,16 @@ CREATE TABLE hike_waypoints (
   PRIMARY KEY (hID, position)
 ) STRICT;
  
+-- People taking part in a hike (MH-72), in order. The hiker who registers the hike is a
+-- member too, at position 1: the party size is the number of members.
+CREATE TABLE hike_party_members (
+  hID       INTEGER NOT NULL REFERENCES hikes(hID) ON DELETE CASCADE,
+  position  INTEGER NOT NULL CHECK (position > 0),
+  name      TEXT    NOT NULL CHECK (length(trim(name)) > 0),
+  phone     TEXT    CHECK (phone IS NULL OR length(trim(phone)) > 0),   -- optional
+  PRIMARY KEY (hID, position)
+) STRICT;
+
 -- Prevents assigning a table more seats than it has.
 CREATE TRIGGER booking_tables_capacity_ins
 BEFORE INSERT ON booking_tables
