@@ -268,9 +268,9 @@ class _RegistryInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
+          children: [
             Text(
               'REGISTRY INFORMATION',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),

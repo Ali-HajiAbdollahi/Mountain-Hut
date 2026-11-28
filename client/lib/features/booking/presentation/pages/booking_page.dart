@@ -115,9 +115,9 @@ class _BookingPageState extends State<BookingPage> {
             child: ListView(
               padding: const EdgeInsets.all(AppConstants.spacingMd),
               children: [
-                _SectionHeader(
+                const _SectionHeader(
                   title: 'CONFIRMED ALLOCATION',
-                  trailing: const _LockedLabel(),
+                  trailing: _LockedLabel(),
                 ),
                 const SizedBox(height: AppConstants.spacingSm),
                 _AllocationCard(allocation: widget.allocation),

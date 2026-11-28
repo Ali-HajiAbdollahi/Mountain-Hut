@@ -82,10 +82,10 @@ class _PassagePointsFieldState extends State<PassagePointsField> {
                   child: TextField(
                     controller: ctrl,
                     onChanged: (_) => _notify(),
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'e.g. Colle del Pas',
                       fillColor: AppColors.surface,
-                      contentPadding: const EdgeInsets.symmetric(
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
