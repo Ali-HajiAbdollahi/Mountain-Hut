@@ -69,14 +69,14 @@ class _CancelBookingDialogState extends State<_CancelBookingDialog> {
               ),
             ),
             const SizedBox(height: AppConstants.spacingXs),
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.warning_amber_rounded,
                   color: AppColors.danger,
                 ),
-                const SizedBox(width: AppConstants.spacingSm),
-                const Expanded(
+                SizedBox(width: AppConstants.spacingSm),
+                Expanded(
                   child: Text(
                     'Cancel Reservation?',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
